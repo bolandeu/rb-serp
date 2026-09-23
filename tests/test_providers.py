@@ -108,10 +108,17 @@ async def test_xmlstock_uses_own_url_and_same_format() -> None:
     assert [r.domain for r in results] == ["a.ru"]
 
 
-async def test_xmlstock_google_is_provider_error() -> None:
-    stock = XmlStockProvider(CREDS, transport=httpx.MockTransport(lambda r: httpx.Response(500)), retry_delay=0)
-    with pytest.raises(ProviderError, match="google"):
-        await stock.search(SearchParams(query="q", engine="google"))
+async def test_xmlstock_google_uses_own_params() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url).startswith("https://xmlstock.com/google/xml/")
+        params = request.url.params
+        assert params["lr"] == "1011969"  # Criteria ID идёт в lr, не в loc
+        assert "loc" not in params and "start" not in params
+        return httpx.Response(200, text=xml_docs(f"https://p{params['page']}.ru/"))
+
+    stock = XmlStockProvider(CREDS, transport=httpx.MockTransport(handler), retry_delay=0)
+    results = await stock.search(SearchParams(query="q", engine="google", top=20))
+    assert [r.domain for r in results] == ["p0.ru", "p1.ru"]
 
 
 def test_missing_credentials_is_auth_required() -> None:

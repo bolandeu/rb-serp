@@ -27,8 +27,9 @@ write them at release time.
   `.serp/config.toml`; по умолчанию `xmlriver`.
 - Список провайдеров с их возможностями в `--help` у `search` и `auth`.
 - Команды `doctor`, `status`, `init`, `config`, `auth`, `skill`, флаг `--ai`.
-- Провайдер `xmlstock` (XMLStock «Яндекс Live», только Яндекс): тот же
-  формат Яндекс.XML, что у XML River; `token` — это `key` из кабинета.
+- Провайдер `xmlstock` (XMLStock): Яндекс («Яндекс Live») и Google, тот же
+  формат Яндекс.XML, что у XML River; у Google регион — Criteria ID в `lr`,
+  страница — `page`. `token` — это `key` из кабинета.
 
 ### Fixed
 

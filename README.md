@@ -79,7 +79,7 @@ serp search "запрос" --json | jq '.results[].domain'
 
 `--provider a,b,c` — очередь: для каждого запроса первый провайдер основной,
 следующий пробуется только если предыдущий упал (`AUTH_REQUIRED`/`PROVIDER_ERROR`).
-Отказали все → ошибка. Провайдеры: `xmlriver` (XML River — yandex и google), `xmlstock` (XMLStock — только yandex); полный список — в `serp search --help`.
+Отказали все → ошибка. Провайдеры: `xmlriver` (XML River — yandex и google), `xmlstock` (XMLStock — yandex и google); полный список — в `serp search --help`.
 
 Очередь можно закрепить за проектом (папкой):
 
