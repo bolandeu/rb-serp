@@ -10,13 +10,7 @@ from rich.table import Table
 from .. import output
 from ..core import services
 from ..core.models import SerpResult
-from ..providers import providers_help
-
-
-class Engine(StrEnum):
-    yandex = "yandex"
-    google = "google"
-    both = "both"
+from . import _query as q
 
 
 class Format(StrEnum):
@@ -55,46 +49,37 @@ def _render(fmt: Format, results: list[SerpResult]) -> None:
 @output.guard
 def search(
     ctx: typer.Context,
-    queries: list[str] = typer.Argument(..., help="Один или несколько поисковых запросов."),
-    engine: Engine = typer.Option(Engine.yandex, "--engine", "-e", help="Поисковая система."),
-    top: int = typer.Option(10, "--top", "-n", min=10, max=100, help="Количество результатов (кратно 10)."),
+    queries: list[str] = q.QueriesArg,
+    engine: q.Engine = q.EngineOpt,
+    top: int = q.TopOpt,
     fmt: Format = typer.Option(Format.table, "--format", "-f", help="Формат вывода для человека."),
     output_path: Path | None = typer.Option(
         None, "--output", "-o", help="Дополнительно сохранить в файл: .csv → CSV, иначе JSON-массив."
     ),
-    yandex_lr: int | None = typer.Option(
-        None,
-        "--yandex-lr",
-        help="Код региона Яндекса (lr), по умолчанию 213=Москва; 2=СПб, 35=Краснодар. "
-        "Все коды: https://yandex.ru/dev/xml/doc/ru/reference/regions",
-    ),
-    google_loc: str | None = typer.Option(
-        None,
-        "--google-loc",
-        help="Criteria ID локации Google, по умолчанию 1011969=Москва; 1012153=СПб. "
-        "Все коды: https://xmlriver.com/files/geo.csv",
-    ),
-    provider: str | None = typer.Option(
-        None,
-        "--provider",
-        "-p",
-        help="Очередь провайдеров через запятую: первый основной, остальные фолбэки. "
-        f"Доступны: {providers_help()}. "
-        "По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
-    ),
+    yandex_lr: int | None = q.YandexLrOpt,
+    google_loc: str | None = q.GoogleLocOpt,
+    provider: str | None = q.ProviderOpt,
+    cache: bool = q.CacheOpt,
+    max_age: str | None = q.MaxAgeOpt,
+    force: bool = q.ForceOpt,
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
     verbose: bool = output.VerboseOption,
 ) -> None:
-    """Поисковая выдача Yandex/Google по одному или нескольким запросам.
+    """Позиции в выдаче Yandex/Google: позиция, домен, URL, заголовок.
 
-    Запросы выполняются по очереди; для каждого провайдеры пробуются по
-    порядку из --provider, пока один не ответит. Отказали все → ошибка
+    Запросы выполняются по очереди; для каждой страницы провайдеры пробуются
+    по порядку из --provider, пока один не ответит. Отказали все → ошибка
     PROVIDER_ERROR (exit 5) или AUTH_REQUIRED (exit 3). Пустая выдача без
-    сбоя — не ошибка.
+    сбоя — не ошибка. Ровно --top позиций, дубли между страницами убраны.
+
+    Ответ провайдера целиком (с рекламой, похожими запросами и т.д.) всегда
+    пишется в журнал; другие блоки отдают команды snippets, ads, related,
+    summary — с --cache они берут уже полученный ответ бесплатно.
 
     --json: {"ok": true, "count": N, "results": [{serp_position, query,
-    searchengine, url, domain, title}, ...]} (+ "saved_to" при --output).
+    searchengine, url, domain, title}, ...], "sources": [{query, engine,
+    page, provider, fetched_at, from_cache}, ...]} (+ "saved_to" при --output).
     --format table печатает таблицу в stderr по мере готовности запросов;
     csv/domains/domains-se печатают данные в stdout.
 
@@ -105,26 +90,34 @@ def search(
       serp search "такси" --yandex-lr 2 --format domains
       serp search "ремонт" -e google --google-loc 1012153
       serp search "запрос" -e both -p xmlstock,xmlriver   # xmlriver — фолбэк
+      serp search "запрос" --cache --max-age 7d          # из журнала, если свежее недели
       serp search "запрос" --json --output results.csv
     """
-    human_table = fmt is Format.table and not ctx.obj.get("json") and not ctx.obj.get("quiet")
-    providers = services.resolve_providers(provider, Path(ctx.obj.get("project") or Path.cwd()))
-    output.vecho(ctx, f"Провайдеры: {', '.join(providers)}")
-    results = services.search(
+    show_table = fmt is Format.table and q.human_mode(ctx)
+    pages = q.collect(
+        ctx,
         queries,
-        engine=engine.value,
+        engine=engine,
         top=top,
-        providers=providers,
         yandex_lr=yandex_lr,
         google_loc=google_loc,
-        on_query_done=_print_table if human_table else None,
+        provider=provider,
+        cache=cache,
+        max_age=max_age,
+        force=force,
+        on_query_done=(lambda query_pages: _print_table(services.organic(query_pages, top))) if show_table else None,
     )
+    results = services.organic(pages, top)
 
-    payload: dict = {"count": len(results), "results": [r.model_dump() for r in results]}
+    payload: dict = {
+        "count": len(results),
+        "results": [r.model_dump() for r in results],
+        "sources": services.sources(pages),
+    }
     if output_path is not None:
         services.save_results(results, output_path, as_csv=output_path.suffix.lower() == ".csv" or fmt is Format.csv)
         payload["saved_to"] = str(output_path)
-        if not ctx.obj.get("json") and not ctx.obj.get("quiet"):
+        if q.human_mode(ctx):
             output.human.err_console.print(f"[green]Сохранено в {output_path}[/green]")
 
     output.emit_success(ctx, payload, render_human=lambda _: _render(fmt, results))

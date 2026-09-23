@@ -1,38 +1,50 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from rb_serp.core import services
 from rb_serp.core.errors import ProviderError
-from rb_serp.core.models import SearchParams, SerpResult
+from rb_serp.core.models import OrganicItem, PageData, PageFetch, SearchParams
 
 from .test_cli import init, invoke, invoke_json
 
 
-@pytest.fixture
-def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[SearchParams, list]]:
-    """Replace the network: SerpClient.search_sync returns two results per query."""
-    seen: list[tuple[SearchParams, list]] = []
+class Calls(list):
+    """Каждый вызов SerpClient.fetch_sync: (params, очередь провайдеров, use_cache, max_age, pages)."""
 
-    def fake_search_sync(self, params: SearchParams) -> list[SerpResult]:
-        seen.append((params, self._chain))
-        query = params.get_queries()[0]
+
+@pytest.fixture
+def calls(monkeypatch: pytest.MonkeyPatch) -> Calls:
+    """Replace the network: every page has two organic results d1.ru, d2.ru."""
+    seen = Calls()
+
+    def fake_fetch_sync(self, params: SearchParams, *, pages=None, use_cache=False, max_age=None) -> list[PageFetch]:
+        seen.append((params, self._chain, use_cache, max_age, pages))
         return [
-            SerpResult(
-                serp_position=i,
+            PageFetch(
                 query=query,
-                searchengine="yandex",
-                url=f"https://d{i}.ru/",
-                domain=f"d{i}.ru",
-                title=f"t{i}",
+                engine=engine,
+                page=page,
+                provider="xmlriver",
+                fetched_at=datetime.now(UTC),
+                from_cache=use_cache,
+                data=PageData(
+                    organic=[
+                        OrganicItem(url=f"https://d{i}.ru/", domain=f"d{i}.ru", title=f"t{i}", snippet=f"s{i}")
+                        for i in (1, 2)
+                    ]
+                ),
             )
-            for i in (1, 2)
+            for query in params.get_queries()
+            for engine in params.get_engines()
+            for page in range(params.num_pages if pages is None else pages)
         ]
 
-    monkeypatch.setattr("rb_serp.core.client.SerpClient.search_sync", fake_search_sync)
+    monkeypatch.setattr("rb_serp.core.client.SerpClient.fetch_sync", fake_fetch_sync)
     return seen
 
 
@@ -42,8 +54,9 @@ def test_search_json_envelope(calls, tmp_path: Path) -> None:
     assert payload["ok"] is True
     assert payload["count"] == 4
     assert {r["query"] for r in payload["results"]} == {"a", "b"}
-    params, chain = calls[0]
-    assert (params.top, params.yandex_lr, chain) == (20, 2, ["xmlriver"])
+    params, chain, use_cache, _, _ = calls[0]
+    assert (params.top, params.yandex_lr, chain, use_cache) == (20, 2, ["xmlriver"], False)
+    assert payload["sources"][0]["provider"] == "xmlriver"
 
 
 def test_search_provider_queue_from_option_and_project(calls, tmp_path: Path) -> None:
@@ -76,10 +89,10 @@ def test_search_without_credentials_is_auth_required(tmp_path: Path) -> None:
 
 
 def test_search_provider_failure_exit_code(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def failing(self, params):
+    def failing(self, params, **kwargs):
         raise ProviderError("xmlriver", "down")
 
-    monkeypatch.setattr("rb_serp.core.client.SerpClient.search_sync", failing)
+    monkeypatch.setattr("rb_serp.core.client.SerpClient.fetch_sync", failing)
     code, payload = invoke_json("--project", str(tmp_path), "search", "q")
     assert code == 5
     assert payload["error"]["provider"] == "xmlriver"
@@ -129,3 +142,16 @@ def test_help_lists_every_provider(command: tuple[str, ...]) -> None:
     result = invoke(*command, "--help", env={"COLUMNS": "200"})
     for name in PROVIDERS:
         assert name in result.output
+
+
+def test_search_cache_flags(calls, tmp_path: Path) -> None:
+    invoke_json("--project", str(tmp_path), "search", "q", "--cache", "--max-age", "7d")
+    _, _, use_cache, max_age, _ = calls[-1]
+    assert (use_cache, max_age) == (True, timedelta(days=7))
+
+    invoke_json("--project", str(tmp_path), "search", "q", "--cache", "--force")
+    assert calls[-1][2] is False
+
+    code, payload = invoke_json("--project", str(tmp_path), "search", "q", "--cache", "--max-age", "week")
+    assert code == 2
+    assert payload["error"]["code"] == "INVALID_ARGUMENTS"

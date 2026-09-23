@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import urllib.parse
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -12,6 +13,81 @@ class SerpResult(BaseModel):
     url: str
     domain: str
     title: str
+
+
+class OrganicItem(BaseModel):
+    """Результат органической выдачи со всеми полями, что отдал провайдер."""
+
+    url: str
+    domain: str
+    title: str
+    snippet: str = ""
+    breadcrumbs: str = ""
+    stars: str = ""
+    site_name: str = ""
+    pubdate: str = ""
+    cachelink: str = ""
+    contenttype: str = ""
+
+
+class AdItem(BaseModel):
+    """Рекламное объявление. `placement`: top / bottom / right."""
+
+    placement: str
+    position: int
+    url: str
+    domain: str
+    title: str
+    snippet: str = ""
+    price: str = ""
+
+
+class RelatedItem(BaseModel):
+    """Похожий запрос (`kind="search"`) или похожий вопрос (`kind="question"`)."""
+
+    kind: str
+    text: str
+    snippet: str = ""
+    url: str = ""
+
+
+class PageData(BaseModel):
+    """Всё, что разобрано из одной страницы ответа."""
+
+    found: int | None = None
+    ai_present: bool | None = None
+    organic: list[OrganicItem] = Field(default_factory=list)
+    ads: list[AdItem] = Field(default_factory=list)
+    related: list[RelatedItem] = Field(default_factory=list)
+    knowledge_graph: dict[str, str] = Field(default_factory=dict)
+
+
+class PageRequest(BaseModel):
+    """Одна страница выдачи, которую нужно получить у провайдера."""
+
+    query: str
+    engine: str
+    page: int  # с нуля; провайдер сам переводит в свою нумерацию
+    yandex_lr: int = 213
+    google_country: str = "RU"
+    google_loc: str = "1011969"
+
+    @property
+    def region(self) -> str:
+        """Регион, от которого зависит выдача этого поисковика (часть ключа кэша)."""
+        return str(self.yandex_lr) if self.engine == "yandex" else self.google_loc
+
+
+class PageFetch(BaseModel):
+    """Одна страница выдачи: откуда пришла и что в ней."""
+
+    query: str
+    engine: str
+    page: int
+    provider: str
+    fetched_at: datetime
+    from_cache: bool
+    data: PageData
 
 
 class SearchParams(BaseModel):

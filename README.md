@@ -75,6 +75,55 @@ serp search "запрос" --json | jq '.results[].domain'
 
 Пустая выдача («ничего не найдено») — это успех с `count: 0`, а не ошибка.
 
+### Блоки выдачи — отдельными командами
+
+Каждый запрос к провайдеру забирает все **бесплатные** блоки ответа, а отдают
+их разные команды (у всех — те же `--engine`, регион, `--provider`, `--cache`):
+
+| Команда | Что отдаёт | Где на практике есть |
+| --- | --- | --- |
+| `serp search` | позиции: #, домен, URL, заголовок | везде |
+| `serp snippets` | то же + сниппет, хлебные крошки, рейтинг, имя сайта, дата, ссылка на кэш | поля зависят от провайдера |
+| `serp ads` | реклама над и под выдачей (с ценой, если есть) | Яндекс |
+| `serp related` | похожие запросы и похожие вопросы | Google |
+| `serp summary` | сколько нашлось, есть ли ИИ-ответ, число блоков, карточка знаний | везде |
+
+Текст ИИ-ответа платный и не запрашивается — `summary` показывает только, есть ли он.
+
+### Журнал ответов и кэш
+
+Каждый ответ провайдера **всегда** сохраняется целиком (сжатый XML, вся история) в
+SQLite-базу `serp.sqlite` в папке данных приложения: на macOS
+`~/Library/Application Support/serp/`, на Linux `~/.local/share/serp/`, на Windows
+`%LOCALAPPDATA%\serp\`. Другой путь — переменная `SERP_DB_PATH`. Логин и ключ туда
+не попадают.
+
+Отдать из журнала вместо платного запроса — только по флагу:
+
+```bash
+serp search "диван" --cache              # есть в журнале → бесплатно, нет → живой запрос
+serp search "диван" --cache --max-age 7d # только если ответ не старше недели
+serp search "диван" --cache --force      # всё равно живой запрос, он станет актуальным
+serp ads "диван" --cache                 # другие блоки того же ответа — бесплатно
+```
+
+Ключ записи — поисковик, регион, текст запроса (без учёта регистра и лишних пробелов) и
+страница; провайдер в ключ не входит — ответ XMLStock годится и для `-p xmlriver`.
+
+```bash
+serp cache info                          # где файл, размер, число записей, даты
+serp cache list -q диван                 # последние записи (без самих ответов)
+serp cache clear --older-than 30d --dry-run   # сколько удалится
+serp cache clear --older-than 30d --confirm   # удалить старше 30 дней
+serp cache clear --all --confirm              # очистить всё
+```
+
+Почему `sqlite3` из стандартной библиотеки, а не готовый кэш: `hishel` (HTTP-кэш для
+httpx) ключует по URL — а в нём логин и ключ провайдера, и не хранит историю;
+`diskcache` — это «ключ → значение» без истории и выборки по дате; DuckDB рассчитан на
+аналитику и не пускает второй процесс на запись. История, выборка по дате и размер —
+это обычная SQL-таблица.
+
 ### Провайдеры и фолбэк
 
 `--provider a,b,c` — очередь: для каждого запроса первый провайдер основной,
@@ -94,13 +143,20 @@ serp config set providers "xmlriver,other"
 from rb_serp import SerpClient, SearchParams
 
 client = SerpClient()  # очередь по умолчанию: ["xmlriver"]
-# client = SerpClient(providers=["xmlriver", "other"])
+# client = SerpClient(providers=["xmlstock", "xmlriver"])
 results = client.search_sync(SearchParams(query="python разработка"))
 # async: results = await client.search(SearchParams(...))
+# из журнала: client.search_sync(params, use_cache=True, max_age=timedelta(days=7))
 
 for r in results:
     print(r.serp_position, r.domain, r.title)
+
+# все блоки: страницы с разобранным ответом (organic, ads, related, found, ...)
+for page in client.fetch_sync(SearchParams(query="диван"), pages=1):
+    print(page.provider, page.from_cache, page.data.ads, page.data.related)
 ```
+
+Клиент пишет каждый ответ в журнал (см. выше); `SerpClient(cache=False)` — не писать.
 
 ```python
 SearchParams(
@@ -125,9 +181,11 @@ SearchParams(
 
 ## Новый провайдер
 
-1. `src/rb_serp/providers/<name>.py` — подкласс `SerpProvider` с `name`,
-   `credential_fields` и `async def search(params) -> list[SerpResult]`. Любой сбой
-   сервиса поднимать как `AuthRequired` / `ProviderError` — на них срабатывает фолбэк.
+1. `src/rb_serp/providers/<name>.py` — подкласс `SerpProvider` с `name`, `summary`,
+   `credential_fields` и `async def fetch_page(request) -> str` — сырой ответ одной
+   страницы в формате Яндекс.XML со всеми бесплатными блоками. Любой сбой сервиса
+   поднимать как `AuthRequired` / `ProviderError` — на них срабатывает фолбэк.
+   Разбор, журнал, `--top` и фолбэк делает `SerpClient`.
 2. Добавить класс в `PROVIDERS` в `src/rb_serp/providers/__init__.py`.
 
 После этого он доступен в `--provider`, `serp auth login --provider <name>` и `doctor`.

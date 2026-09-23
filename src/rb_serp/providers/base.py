@@ -4,18 +4,22 @@ import os
 from abc import ABC, abstractmethod
 from typing import ClassVar
 
-from ..core.models import SearchParams, SerpResult
+from ..core.models import PageRequest
 from ..credentials import manager as credentials
 
 
 class SerpProvider(ABC):
     """Абстрактный интерфейс провайдера поисковой выдачи.
 
+    Провайдер умеет одно: получить одну страницу выдачи и вернуть сырой ответ
+    в формате Яндекс.XML (`<yandexsearch>`) — со всеми бесплатными блоками, что
+    сервис отдаёт. Разбор (`core.serp_xml`), кэш, фолбэк по очереди и сборку
+    страниц делает `SerpClient`.
+
     Подкласс задаёт `name` (ключ в реестре `providers.PROVIDERS` и имя
-    credential в keychain) и `credential_fields` — какие поля нужны для
-    доступа. Сбои внешнего сервиса провайдер обязан поднимать как
-    `ProviderError` / `AuthRequired`: на них `SerpClient` переключается на
-    следующий провайдер из очереди.
+    credential в keychain), `summary` (строка для --help) и
+    `credential_fields`. Сбои внешнего сервиса поднимать как `ProviderError` /
+    `AuthRequired`: на них `SerpClient` переключается на следующий провайдер.
     """
 
     name: ClassVar[str]
@@ -38,6 +42,9 @@ class SerpProvider(ABC):
         return None
 
     @abstractmethod
-    async def search(self, params: SearchParams) -> list[SerpResult]:
-        """Выполняет поиск и возвращает результаты."""
+    async def fetch_page(self, request: PageRequest) -> str:
+        """Сырой XML одной страницы. Пустая выдача — валидный ответ, не ошибка."""
         ...
+
+    async def aclose(self) -> None:  # noqa: B027 — по умолчанию закрывать нечего
+        """Освободить сетевые ресурсы; клиент вызывает в конце каждого поиска."""

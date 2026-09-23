@@ -7,14 +7,14 @@ import xml.etree.ElementTree as ET
 import httpx
 
 from ..core.errors import AuthRequired, ProviderError
-from ..core.models import SearchParams, SerpResult, extract_domain
+from ..core.models import PageRequest
+from ..core.serp_xml import parse_page, response_error
 from .base import SerpProvider
 
 log = logging.getLogger(__name__)
 
 _BASE_URL_YANDEX = "https://xmlriver.com/search_yandex/xml"
 _BASE_URL_GOOGLE = "https://xmlriver.com/search/xml"
-_MAX_CONCURRENT = 10
 _MAX_ATTEMPTS = 10
 _RETRY_DELAY = 1.0
 _RETRY_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
@@ -24,29 +24,15 @@ _NO_RESULTS = 15
 _AUTH_ERRORS = frozenset({31, 42})
 _RETRY_ERRORS = frozenset({20, 21, 22, 23, 24, 101, 110, 111, 202, 203, 500})
 
-
-def parse_xml(xml_text: str) -> tuple[list[tuple[str, str]], int | None, str]:
-    """Разбирает ответ: ([(url, title)], код ошибки или None, текст ошибки)."""
-    root = ET.fromstring(xml_text)  # noqa: S314
-    error = root.find(".//error")
-    if error is not None:
-        code = error.get("code")
-        return [], int(code) if code and code.isdigit() else None, (error.text or "").strip()
-
-    docs = [group.find("doc") for group in root.findall(".//group")]
-    if not any(doc is not None for doc in docs):
-        docs = root.findall(".//doc")
-    results: list[tuple[str, str]] = []
-    for doc in docs:
-        if doc is None:
-            continue
-        url = doc.findtext("url")
-        if url:
-            # Яндекс подсвечивает слова запроса <hlword> внутри title: findtext
-            # вернул бы только текст до первой подсветки.
-            title = doc.find("title")
-            results.append((url, "".join(title.itertext()) if title is not None else ""))
-    return results, None, ""
+# Все бесплатные доп. блоки (платный только `ai` — текст ИИ-ответа, его не берём).
+# https://xmlriver.com/apiydoc/apiy-about/ и https://xmlriver.com/apidoc/api-about/
+_YANDEX_ADDITIONAL = (
+    "y_topads,y_bottomads,y_rightads,searchsters,searchsters_side,scroller,rs_y,y_sitelinks,y_news,y_of"
+)
+_GOOGLE_ADDITIONAL = (
+    "topads,bottomads,faqsnippet,localresultsplace,rq,rs,es,cachelink,google_first_position,sitelinks,"
+    "oneline_sitelinks,knowledge_graph,g_inlineshopping,g_podcasts,app,g_news,g_videos,g_discuss"
+)
 
 
 class XmlRiverProvider(SerpProvider):
@@ -71,83 +57,87 @@ class XmlRiverProvider(SerpProvider):
         self._token = credential["token"]
         self._transport = transport  # тестовый шов для httpx.MockTransport
         self._retry_delay = retry_delay
+        self._client: httpx.AsyncClient | None = None
 
     def _base_url(self, engine: str) -> str:
         """Адрес API для движка; подкласс с тем же форматом ответа меняет только его."""
         return _BASE_URL_YANDEX if engine == "yandex" else _BASE_URL_GOOGLE
 
-    def _build_params(self, query: str, engine: str, page: int, params: SearchParams) -> dict:
-        """Формирует параметры запроса для выбранной поисковой системы."""
-        base: dict = {"user": self._user, "key": self._token}
-        if engine == "yandex":
+    def _build_params(self, request: PageRequest) -> dict:
+        """Параметры запроса: регион, страница и все бесплатные доп. блоки."""
+        base: dict = {"user": self._user, "key": self._token, "query": request.query}
+        if request.engine == "yandex":
             base.update(
                 {
-                    "query": query,
-                    "lr": params.yandex_lr,
+                    "lr": request.yandex_lr,
                     "device": "mobile",
                     "lang": "ru",
                     "groupby": "10",
-                    "page": page,
+                    "page": request.page,
+                    "additional": _YANDEX_ADDITIONAL,
                 }
             )
-        else:  # google
+        else:  # google: страницы с 1; `start` сервис понимает неверно (выдача не по запросу)
             base.update(
                 {
-                    "query": query,
-                    "lr": params.google_country,
-                    "groupby": "10",
+                    "lr": request.google_country,
                     "country": "2643",
-                    "loc": params.google_loc,
-                    "start": page * 10,
+                    "loc": request.google_loc,
+                    "page": request.page + 1,
+                    "ads": 1,
+                    "additional": _GOOGLE_ADDITIONAL,
                 }
             )
         return base
 
-    async def _fetch_page(
-        self,
-        client: httpx.AsyncClient,
-        semaphore: asyncio.Semaphore,
-        query: str,
-        engine: str,
-        page: int,
-        params: SearchParams,
-    ) -> list[tuple[str, str]]:
+    def _http(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=60.0, transport=self._transport)
+        return self._client
+
+    async def aclose(self) -> None:
+        # AsyncClient привязан к event loop, а search_sync каждый раз запускает новый.
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    async def fetch_page(self, request: PageRequest) -> str:
         """Одна страница выдачи. Временные сбои повторяются, остальное — ProviderError/AuthRequired."""
-        base_url = self._base_url(engine)
-        request_params = self._build_params(query, engine, page, params)
-        where = f"[{engine}] '{query}' стр.{page}"
+        where = f"[{request.engine}] '{request.query}' стр.{request.page}"
         last_error = "нет ответа"
 
         for attempt in range(1, _MAX_ATTEMPTS + 1):
-            async with semaphore:
-                try:
-                    response = await client.get(base_url, params=request_params)
-                except httpx.TransportError as exc:
-                    last_error = type(exc).__name__
+            try:
+                response = await self._http().get(self._base_url(request.engine), params=self._build_params(request))
+            except httpx.TransportError as exc:
+                last_error = type(exc).__name__
+            else:
+                status = response.status_code
+                if status in (401, 403):
+                    raise AuthRequired(self.name)
+                if response.is_error:
+                    if status not in _RETRY_HTTP_STATUSES:
+                        raise ProviderError(self.name, f"{where}: HTTP {status}", status=status)
+                    last_error = f"HTTP {status}"
                 else:
-                    status = response.status_code
-                    if status in (401, 403):
-                        raise AuthRequired(self.name)
-                    if response.is_error:
-                        if status not in _RETRY_HTTP_STATUSES:
-                            raise ProviderError(self.name, f"{where}: HTTP {status}", status=status)
-                        last_error = f"HTTP {status}"
+                    try:
+                        error = response_error(response.text)
+                        has_results = error is None and bool(parse_page(response.text).organic)
+                    except ET.ParseError as exc:
+                        error, has_results = None, False
+                        last_error = f"некорректный XML ({exc})"
                     else:
-                        try:
-                            items, code, message = parse_xml(response.text)
-                        except ET.ParseError as exc:
-                            items, code, message = [], None, ""
-                            last_error = f"некорректный XML ({exc})"
-                        else:
-                            last_error = f"ошибка {code}: {message}" if code is not None else "пустой ответ"
-                        if items:
-                            log.info("%s — получено %d результатов (попытка %d)", where, len(items), attempt)
-                            return items
+                        last_error = f"ошибка {error[0]}: {error[1]}" if error else "пустой ответ"
+                    if has_results:
+                        log.info("%s — ответ получен (попытка %d)", where, attempt)
+                        return response.text
+                    if error is not None:
+                        code = error[0]
                         if code == _NO_RESULTS:
-                            return []
+                            return response.text
                         if code in _AUTH_ERRORS:
                             raise AuthRequired(self.name)
-                        if code is not None and code not in _RETRY_ERRORS:
+                        if code not in _RETRY_ERRORS:
                             raise ProviderError(self.name, f"{where}: {last_error}")
 
             log.warning("%s — %s (попытка %d/%d)", where, last_error, attempt, _MAX_ATTEMPTS)
@@ -155,45 +145,3 @@ class XmlRiverProvider(SerpProvider):
                 await asyncio.sleep(self._retry_delay)
 
         raise ProviderError(self.name, f"{where}: {last_error} после {_MAX_ATTEMPTS} попыток")
-
-    async def _search_one(
-        self,
-        client: httpx.AsyncClient,
-        semaphore: asyncio.Semaphore,
-        query: str,
-        engine: str,
-        params: SearchParams,
-    ) -> list[SerpResult]:
-        """Получает результаты для одного запроса и одного движка."""
-        pages = await asyncio.gather(
-            *(self._fetch_page(client, semaphore, query, engine, page, params) for page in range(params.num_pages))
-        )
-        items = [item for page_items in pages for item in page_items]
-        return [
-            SerpResult(
-                serp_position=position,
-                query=query,
-                searchengine=engine,
-                url=url,
-                domain=extract_domain(url),
-                title=title,
-            )
-            for position, (url, title) in enumerate(items, start=1)
-        ]
-
-    async def search(self, params: SearchParams) -> list[SerpResult]:
-        """Выполняет поиск по всем запросам и движкам параллельно; любой сбой прерывает весь поиск."""
-        # Семафор создаётся на каждый вызов: он привязывается к event loop, а
-        # search_sync запускает новый loop на каждый вызов.
-        semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
-        async with httpx.AsyncClient(timeout=30.0, transport=self._transport) as client:
-            try:
-                async with asyncio.TaskGroup() as group:
-                    tasks = [
-                        group.create_task(self._search_one(client, semaphore, query, engine, params))
-                        for query in params.get_queries()
-                        for engine in params.get_engines()
-                    ]
-            except ExceptionGroup as eg:
-                raise eg.exceptions[0] from None
-        return [result for task in tasks for result in task.result()]

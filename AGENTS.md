@@ -28,7 +28,10 @@ text agents read as this CLI's API contract.
 - `core/` — services, models, errors. All real logic lives here.
 - `providers/` — SERP providers, one module per service, each a
   `providers.SerpProvider` subclass registered in `providers.PROVIDERS`
-  (`name`, `credential_fields`, async `search()`). A provider must turn
+  (`name`, `summary`, `credential_fields`, async `fetch_page(request) -> str`
+  returning one page of raw Yandex.XML with every free block). Parsing
+  (`core/serp_xml.py`), the response journal (`core/cache.py`), `--top`
+  trimming and the fallback queue live in `SerpClient`. A provider must turn
   every vendor failure into `AuthRequired` / `ProviderError` — that is
   what `SerpClient` switches to the next provider in the queue on
   (`--provider a,b`, project `providers = [...]`, default `["xmlriver"]`).

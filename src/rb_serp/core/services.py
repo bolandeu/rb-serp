@@ -4,6 +4,7 @@ import csv
 import json
 import tomllib
 from collections.abc import Callable
+from datetime import timedelta
 from pathlib import Path
 from typing import TextIO
 
@@ -11,9 +12,9 @@ import tomli_w
 from packaging.version import Version
 from pydantic import ValidationError
 
-from .client import SerpClient
+from .client import SerpClient, organic_items, organic_results
 from .errors import CliTooOld, InvalidArguments, ProjectNotInitialized
-from .models import DEFAULT_PROVIDERS, ProjectConfig, SearchParams, SerpResult
+from .models import DEFAULT_PROVIDERS, PageFetch, ProjectConfig, SearchParams, SerpResult
 from .version import CLI_NAME, installed_version
 
 # Derived at import time from this package's own name, so this module never
@@ -91,7 +92,18 @@ def resolve_providers(explicit: str | None, start: Path) -> list[str]:
     return list(DEFAULT_PROVIDERS)
 
 
-def search(
+_AGE_UNITS = {"m": "minutes", "h": "hours", "d": "days", "w": "weeks"}
+
+
+def parse_age(value: str) -> timedelta:
+    """'30m', '12h', '7d', '2w' → timedelta."""
+    number, unit = value[:-1], value[-1:].lower()
+    if not number.isdigit() or unit not in _AGE_UNITS:
+        raise InvalidArguments(f"Не понимаю срок '{value}': нужно число и m/h/d/w, например 30m, 12h, 7d, 2w.")
+    return timedelta(**{_AGE_UNITS[unit]: int(number)})
+
+
+def collect(
     queries: list[str],
     *,
     engine: str,
@@ -99,11 +111,17 @@ def search(
     providers: list[str],
     yandex_lr: int | None = None,
     google_loc: str | None = None,
-    on_query_done: Callable[[list[SerpResult]], None] | None = None,
-) -> list[SerpResult]:
-    """Поиск по запросам последовательно (по одному запросу за вызов провайдера).
+    use_cache: bool = False,
+    max_age: timedelta | None = None,
+    first_page_only: bool = False,
+    on_query_done: Callable[[list[PageFetch]], None] | None = None,
+) -> list[PageFetch]:
+    """Страницы выдачи по запросам — последовательно, запрос за запросом.
 
-    Фолбэк на следующий провайдер срабатывает на уровне отдельного запроса.
+    Каждый ответ провайдера пишется в журнал; из журнала берётся только при
+    `use_cache` (и не старше `max_age`). Фолбэк на следующий провайдер — на
+    уровне каждой страницы. `first_page_only` — для блоков, которые есть только
+    на первой странице (реклама, похожие запросы, сводка).
     `on_query_done` вызывается после каждого запроса — для вывода прогресса.
     """
     overrides: dict = {}
@@ -117,13 +135,75 @@ def search(
         raise InvalidArguments("; ".join(err["msg"] for err in exc.errors())) from exc
 
     client = SerpClient(providers=providers)
-    all_results: list[SerpResult] = []
+    all_pages: list[PageFetch] = []
     for params in per_query:
-        results = client.search_sync(params)
-        all_results.extend(results)
+        pages = client.fetch_sync(params, pages=1 if first_page_only else None, use_cache=use_cache, max_age=max_age)
+        all_pages.extend(pages)
         if on_query_done is not None:
-            on_query_done(results)
-    return all_results
+            on_query_done(pages)
+    return all_pages
+
+
+def sources(pages: list[PageFetch]) -> list[dict]:
+    """Откуда каждая страница: провайдер, когда получена, из кэша ли."""
+    return [
+        {
+            "query": p.query,
+            "engine": p.engine,
+            "page": p.page,
+            "provider": p.provider,
+            "fetched_at": p.fetched_at.isoformat(),
+            "from_cache": p.from_cache,
+        }
+        for p in pages
+    ]
+
+
+organic = organic_results
+
+
+def snippets(pages: list[PageFetch], top: int) -> list[dict]:
+    """Органика со всеми полями: сниппет, крошки, рейтинг, имя сайта, дата, кэш-ссылка."""
+    return [
+        {"serp_position": position, "query": page.query, "searchengine": page.engine, **item.model_dump()}
+        for page, position, item in organic_items(pages, top)
+    ]
+
+
+def ads(pages: list[PageFetch]) -> list[dict]:
+    return [
+        {"query": page.query, "searchengine": page.engine, **ad.model_dump()}
+        for page in pages
+        if page.page == 0
+        for ad in page.data.ads
+    ]
+
+
+def related(pages: list[PageFetch]) -> list[dict]:
+    return [
+        {"query": page.query, "searchengine": page.engine, **item.model_dump()}
+        for page in pages
+        if page.page == 0
+        for item in page.data.related
+    ]
+
+
+def summary(pages: list[PageFetch]) -> list[dict]:
+    """Сводка по первой странице каждого (запрос, поисковик)."""
+    return [
+        {
+            "query": page.query,
+            "searchengine": page.engine,
+            "found": page.data.found,
+            "ai_present": page.data.ai_present,
+            "organic": len(page.data.organic),
+            "ads": len(page.data.ads),
+            "related": len(page.data.related),
+            "knowledge_graph": page.data.knowledge_graph,
+        }
+        for page in pages
+        if page.page == 0
+    ]
 
 
 def write_csv(results: list[SerpResult], stream: TextIO) -> None:

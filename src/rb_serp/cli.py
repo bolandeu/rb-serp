@@ -6,7 +6,8 @@ import typer
 from typer import rich_utils
 
 from . import output
-from .commands import auth, doctor, init, search, skill, status
+from .commands import auth, blocks, doctor, init, search, skill, status
+from .commands import cache as cache_cmd
 from .commands import config as config_cmd
 from .core.version import CLI_NAME, DEV_VERSION, installed_version, package_summary
 
@@ -32,11 +33,16 @@ app = typer.Typer(
 app.add_typer(config_cmd.app, name="config")
 app.add_typer(auth.app, name="auth")
 app.add_typer(skill.app, name="skill")
+app.add_typer(cache_cmd.app, name="cache")
 
 app.command(name="init")(init.init)
 app.command(name="status")(status.status)
 app.command(name="doctor")(doctor.doctor)
 app.command(name="search")(search.search)
+app.command(name="snippets")(blocks.snippets)
+app.command(name="ads")(blocks.ads)
+app.command(name="related")(blocks.related)
+app.command(name="summary")(blocks.summary)
 
 
 def _version_callback(value: bool) -> None:
