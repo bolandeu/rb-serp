@@ -24,11 +24,10 @@ _NO_RESULTS = 15
 _AUTH_ERRORS = frozenset({31, 42})
 _RETRY_ERRORS = frozenset({20, 21, 22, 23, 24, 101, 110, 111, 202, 203, 500})
 
-# Все бесплатные доп. блоки (платный только `ai` — текст ИИ-ответа, его не берём).
-# https://xmlriver.com/apiydoc/apiy-about/ и https://xmlriver.com/apidoc/api-about/
-_YANDEX_ADDITIONAL = (
-    "y_topads,y_bottomads,y_rightads,searchsters,searchsters_side,scroller,rs_y,y_sitelinks,y_news,y_of"
-)
+# Google: все бесплатные доп. блоки (платный только `ai` — текст ИИ-ответа, его не
+# берём), https://xmlriver.com/apidoc/api-about/. Для Яндекса доп. блоки
+# (`additional=y_topads,...`) не запрашиваем: с ними XML River отдаёт 1–8 позиций
+# вместо 10+ (проверено 2026-09-23); рекламу Яндекса отдаёт XMLStock.
 _GOOGLE_ADDITIONAL = (
     "topads,bottomads,faqsnippet,localresultsplace,rq,rs,es,cachelink,google_first_position,sitelinks,"
     "oneline_sitelinks,knowledge_graph,g_inlineshopping,g_podcasts,app,g_news,g_videos,g_discuss"
@@ -64,7 +63,7 @@ class XmlRiverProvider(SerpProvider):
         return _BASE_URL_YANDEX if engine == "yandex" else _BASE_URL_GOOGLE
 
     def _build_params(self, request: PageRequest) -> dict:
-        """Параметры запроса: регион, страница и все бесплатные доп. блоки."""
+        """Параметры запроса: регион, страница и (для Google) все бесплатные доп. блоки."""
         base: dict = {"user": self._user, "key": self._token, "query": request.query}
         if request.engine == "yandex":
             base.update(
@@ -74,7 +73,6 @@ class XmlRiverProvider(SerpProvider):
                     "lang": "ru",
                     "groupby": "10",
                     "page": request.page,
-                    "additional": _YANDEX_ADDITIONAL,
                 }
             )
         else:  # google: страницы с 1; `start` сервис понимает неверно (выдача не по запросу)

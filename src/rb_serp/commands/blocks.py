@@ -92,9 +92,10 @@ def ads(
 ) -> None:
     """Реклама на первой странице выдачи: над выдачей (top) и под ней (bottom).
 
-    На практике рекламу отдают только для Яндекса: XMLStock — сверху и снизу,
-    XML River — снизу (с полем price, когда оно есть). Для Google оба сервиса
-    рекламу обычно не возвращают. Нет рекламы — пустой список, не ошибка.
+    На практике рекламу отдаёт только XMLStock для Яндекса (-p xmlstock):
+    XML River рекламу Яндекса не запрашивает — с ней он урезает выдачу, а для
+    Google оба сервиса рекламу обычно не возвращают. Нет рекламы — пустой
+    список, не ошибка.
 
     --json: {"ok": true, "count": N, "results": [{query, searchengine,
     placement, position, url, domain, title, snippet, price}, ...],
@@ -103,7 +104,7 @@ def ads(
     \b
     Примеры:
       serp ads "купить диван" -p xmlstock
-      serp ads "купить диван" --cache --json
+      serp ads "купить диван" -p xmlstock --cache --json
     """
     pages = q.collect(
         ctx, queries, engine=engine, top=10, yandex_lr=yandex_lr, google_loc=google_loc,

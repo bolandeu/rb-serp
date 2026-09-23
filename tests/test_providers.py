@@ -37,7 +37,7 @@ def test_parses_results_with_positions_and_domains() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.scheme == "https"
         assert request.url.params["key"] == "t"
-        assert "y_topads" in request.url.params["additional"]  # все бесплатные блоки
+        assert "additional" not in request.url.params  # с доп. блоками XML River урезает выдачу Яндекса
         return httpx.Response(200, text=xml_docs("https://www.a.ru/x", "https://b.ru/"))
 
     results = search(river(handler))
