@@ -63,10 +63,16 @@ def search(
         None, "--output", "-o", help="Дополнительно сохранить в файл: .csv → CSV, иначе JSON-массив."
     ),
     yandex_lr: int | None = typer.Option(
-        None, "--yandex-lr", help="Код региона Яндекса (lr). Пример: 213=Москва, 2=СПб, 35=Краснодар."
+        None,
+        "--yandex-lr",
+        help="Код региона Яндекса (lr), по умолчанию 213=Москва; 2=СПб, 35=Краснодар. "
+        "Все коды: https://yandex.ru/dev/xml/doc/ru/reference/regions",
     ),
     google_loc: str | None = typer.Option(
-        None, "--google-loc", help="Criteria ID локации Google. Пример: 1011969=Москва, 1012153=СПб."
+        None,
+        "--google-loc",
+        help="Criteria ID локации Google, по умолчанию 1011969=Москва; 1012153=СПб. "
+        "Все коды: https://xmlriver.com/files/geo.csv",
     ),
     provider: str | None = typer.Option(
         None,
@@ -97,6 +103,8 @@ def search(
       serp search "python разработка"
       serp search "seo" "продвижение" --engine both --top 20
       serp search "такси" --yandex-lr 2 --format domains
+      serp search "ремонт" -e google --google-loc 1012153
+      serp search "запрос" -e both -p xmlstock,xmlriver   # xmlriver — фолбэк
       serp search "запрос" --json --output results.csv
     """
     human_table = fmt is Format.table and not ctx.obj.get("json") and not ctx.obj.get("quiet")
