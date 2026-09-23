@@ -8,6 +8,8 @@ write them at release time.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-23
+
 ### Added
 
 - Журнал всех ответов провайдеров (SQLite `serp.sqlite` в папке данных
