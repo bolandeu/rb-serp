@@ -1,6 +1,6 @@
 ---
 name: serp
-description: Conventions for driving the serp CLI from an agent — install, JSON output, exit codes, credentials, destructive-command gating. Invoke when a task involves this project's operations.
+description: Get Yandex/Google search results (SERP: top-N URLs, domains, titles by query and region) via the `serp` CLI — XML River / XMLStock with fallback. Use whenever a task needs live search results, competitors in the top, or domains ranking for a query (поисковая выдача, топ Яндекса/Google, конкуренты в выдаче). Covers install, --json output, exit codes, credentials.
 ---
 
 # serp
