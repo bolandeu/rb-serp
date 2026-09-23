@@ -18,6 +18,7 @@ class XmlStockProvider(XmlRiverProvider):
     """
 
     name = "xmlstock"
+    summary = "XMLStock — только yandex"
     credential_fields = ("user", "token")
     legacy_env = {}  # noqa: RUF012 — ClassVar в базе
 

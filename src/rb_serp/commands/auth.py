@@ -5,11 +5,11 @@ import typer
 from .. import output
 from ..core.errors import InvalidArguments
 from ..credentials import manager as credentials
-from ..providers import provider_class
+from ..providers import provider_class, providers_help
 
 app = output.group("Manage credentials.")
 
-ProviderOption = typer.Option("xmlriver", "--provider", help="Provider name (see `serp search --help`).")
+ProviderOption = typer.Option("xmlriver", "--provider", help=f"Провайдер. Доступны: {providers_help()}.")
 
 
 @app.command("login")

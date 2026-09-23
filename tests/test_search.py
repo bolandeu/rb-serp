@@ -120,3 +120,12 @@ def test_search_output_file(calls, tmp_path: Path, name: str) -> None:
 def test_write_csv_empty_writes_nothing(tmp_path: Path) -> None:
     services.save_results([], tmp_path / "e.csv", as_csv=True)
     assert (tmp_path / "e.csv").read_text() == ""
+
+
+@pytest.mark.parametrize("command", [("search",), ("auth", "login")])
+def test_help_lists_every_provider(command: tuple[str, ...]) -> None:
+    from rb_serp.providers import PROVIDERS
+
+    result = invoke(*command, "--help", env={"COLUMNS": "200"})
+    for name in PROVIDERS:
+        assert name in result.output

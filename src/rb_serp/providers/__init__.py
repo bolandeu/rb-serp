@@ -18,6 +18,11 @@ PROVIDERS: dict[str, type[SerpProvider]] = {
 }
 
 
+def providers_help() -> str:
+    """Список провайдеров для --help: `xmlriver (XML River — ...), ...`."""
+    return "; ".join(f"{name} ({cls.summary})" if cls.summary else name for name, cls in PROVIDERS.items())
+
+
 def provider_class(name: str) -> type[SerpProvider]:
     try:
         return PROVIDERS[name]
@@ -25,4 +30,4 @@ def provider_class(name: str) -> type[SerpProvider]:
         raise InvalidArguments(f"Неизвестный провайдер '{name}'. Доступны: {', '.join(PROVIDERS)}.") from None
 
 
-__all__ = ["PROVIDERS", "SerpProvider", "XmlRiverProvider", "XmlStockProvider", "provider_class"]
+__all__ = ["PROVIDERS", "SerpProvider", "XmlRiverProvider", "XmlStockProvider", "provider_class", "providers_help"]

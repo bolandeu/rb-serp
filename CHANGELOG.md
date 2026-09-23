@@ -25,6 +25,7 @@ write them at release time.
 
 - Очередь провайдеров с фолбэком: `search --provider a,b`, `providers` в
   `.serp/config.toml`; по умолчанию `xmlriver`.
+- Список провайдеров с их возможностями в `--help` у `search` и `auth`.
 - Команды `doctor`, `status`, `init`, `config`, `auth`, `skill`, флаг `--ai`.
 - Провайдер `xmlstock` (XMLStock «Яндекс Live», только Яндекс): тот же
   формат Яндекс.XML, что у XML River; `token` — это `key` из кабинета.

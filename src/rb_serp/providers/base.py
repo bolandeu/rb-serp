@@ -19,6 +19,8 @@ class SerpProvider(ABC):
     """
 
     name: ClassVar[str]
+    # Одна строка для --help: сервис и какие движки умеет.
+    summary: ClassVar[str] = ""
     credential_fields: ClassVar[tuple[str, ...]] = ()
     # Устаревшие имена env-переменных по полям, читаются, если поле не нашлось
     # ни в SERP_<PROVIDER>_<FIELD>, ни в keychain.

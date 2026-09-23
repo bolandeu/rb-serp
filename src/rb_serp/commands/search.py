@@ -10,6 +10,7 @@ from rich.table import Table
 from .. import output
 from ..core import services
 from ..core.models import SerpResult
+from ..providers import providers_help
 
 
 class Engine(StrEnum):
@@ -72,6 +73,7 @@ def search(
         "--provider",
         "-p",
         help="Очередь провайдеров через запятую: первый основной, остальные фолбэки. "
+        f"Доступны: {providers_help()}. "
         "По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
     ),
     json_output: bool = output.JsonOption,

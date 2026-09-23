@@ -53,6 +53,7 @@ class XmlRiverProvider(SerpProvider):
     """Провайдер поисковой выдачи через XML River API."""
 
     name = "xmlriver"
+    summary = "XML River — yandex и google"
     credential_fields = ("user", "token")
     legacy_env = {"user": "XMLRIVER_USER", "token": "XMLRIVER_TOKEN"}  # noqa: RUF012 — ClassVar в базе
 
