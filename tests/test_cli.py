@@ -37,6 +37,7 @@ def test_bare_invocation_shows_help_and_exits_zero() -> None:
     assert result.exit_code == 0
     assert "Usage:" in result.output
     assert "Команды" in result.output  # справка по-русски
+    assert "Журнал ответов" in result.output  # где журнал и сколько весит
     assert "--install-completion" not in result.output
 
 

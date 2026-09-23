@@ -56,6 +56,27 @@ def default_path() -> Path:
     )
 
 
+def human_size(num_bytes: int) -> str:
+    size = float(num_bytes)
+    for unit in ("Б", "КБ", "МБ"):
+        if size < 1024:
+            return f"{size:.0f} {unit}"
+        size /= 1024
+    return f"{size:.1f} ГБ"
+
+
+def files_size(path: Path) -> int:
+    """Размер базы вместе с журналом WAL (-wal, -shm); 0, если базы ещё нет."""
+    return sum(p.stat().st_size for p in path.parent.glob(path.name + "*")) if path.parent.is_dir() else 0
+
+
+def help_line() -> str:
+    """Строка для --help: где журнал и сколько весит — без открытия базы."""
+    path = default_path()
+    size = files_size(path)
+    return f"Журнал ответов: {path} — {human_size(size) if size else 'пока пуст'}."
+
+
 def query_key(query: str) -> str:
     """Регистр и лишние пробелы на выдачу не влияют — и на ключ тоже."""
     return " ".join(query.lower().split())
@@ -137,7 +158,7 @@ class ResponseCache:
                 "SELECT COUNT(*), MIN(fetched_at), MAX(fetched_at) FROM responses"
             ).fetchone()
             by_provider = dict(conn.execute("SELECT provider, COUNT(*) FROM responses GROUP BY provider").fetchall())
-        size = sum(p.stat().st_size for p in self.path.parent.glob(self.path.name + "*"))  # + -wal/-shm
+        size = files_size(self.path)
         return CacheStats(
             path=str(self.path),
             file_size=size,

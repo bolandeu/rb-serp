@@ -50,3 +50,13 @@ def test_stats_entries_and_clear_all() -> None:
     assert [e.query for e in cache.entries()] == ["b", "a"]
     assert [e.query for e in cache.entries(query="A")] == ["a"]
     assert cache.clear(None) == 2
+
+
+def test_help_line_shows_size_without_creating_db(isolated_cache: Path) -> None:
+    from rb_serp.core.cache import help_line, human_size
+
+    assert "пока пуст" in help_line()
+    assert not isolated_cache.exists()  # справка не создаёт базу
+    put(ResponseCache())
+    assert "КБ" in help_line()
+    assert human_size(512) == "512 Б" and human_size(3 * 1024**3) == "3.0 ГБ"

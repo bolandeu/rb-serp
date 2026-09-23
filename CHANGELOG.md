@@ -17,6 +17,7 @@ write them at release time.
   `snippets` (сниппет, крошки, рейтинг, имя сайта, дата, кэш-ссылка), `ads`,
   `related`, `summary`; в библиотеке — `SerpClient.fetch()` / `fetch_sync()`.
 - В `--json` у команд выдачи — `sources`: провайдер, время, из кэша ли.
+- Где лежит журнал и сколько весит — в справке `serp` и `serp cache`.
 
 ### Fixed
 

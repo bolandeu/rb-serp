@@ -4,19 +4,10 @@ import typer
 
 from .. import output
 from ..core import services
-from ..core.cache import ResponseCache
+from ..core.cache import ResponseCache, help_line, human_size
 from ..core.errors import InvalidArguments
 
-app = output.group("Журнал всех ответов провайдеров (он же кэш для --cache).")
-
-
-def _size(num_bytes: int) -> str:
-    size = float(num_bytes)
-    for unit in ("Б", "КБ", "МБ"):
-        if size < 1024:
-            return f"{size:.0f} {unit}"
-        size /= 1024
-    return f"{size:.1f} ГБ"
+app = output.group(f"Журнал всех ответов провайдеров (он же кэш для --cache).\n\n{help_line()}")
 
 
 @app.command("info")
@@ -35,7 +26,7 @@ def info(
             "Журнал ответов",
             {
                 "файл": d["path"],
-                "размер": _size(d["file_size"]),
+                "размер": human_size(d["file_size"]),
                 "записей": d["entries"],
                 "самая старая": d["oldest"] or "—",
                 "самая новая": d["newest"] or "—",
