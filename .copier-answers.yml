@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v1.0.0
+_src_path: /Users/bolandau/.claude/skills/cli-generator
+author_name: bolandeu
+description: Поисковая выдача Yandex/Google через SERP-провайдеров (XML River по умолчанию)
+include_auth: true
+package_name: rb_serp
+project_name: serp
+repository_url: https://github.com/bolandeu/serp

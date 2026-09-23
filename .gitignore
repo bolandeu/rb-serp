@@ -1,0 +1,14 @@
+*.egg-info/
+*.py[cod]
+.DS_Store
+.claude/settings.local.json
+.coverage
+.env
+.env.shared
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+build/
+dist/
+htmlcov/
