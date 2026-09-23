@@ -31,8 +31,13 @@ def response_error(xml_text: str) -> tuple[int | None, str] | None:
     return (int(code) if code and code.isdigit() else None), _text(error)
 
 
+_NO_RESULTS = 15
+
+
 def parse_page(xml_text: str) -> PageData:
     root = ET.fromstring(xml_text)  # noqa: S314 — ответ доверенного API
+    error = root.find(".//error")
+    no_results = error is not None and error.get("code") == str(_NO_RESULTS)
 
     docs = [group.find("doc") for group in root.findall(".//group")]
     if not any(doc is not None for doc in docs):
@@ -87,6 +92,7 @@ def parse_page(xml_text: str) -> PageData:
     found = _text(root.find(".//response/found"))
     ai = _text(root.find(".//ai/present"))
     return PageData(
+        no_results=no_results,
         found=int(found) if found.isdigit() else None,
         ai_present=(ai == "1") if ai else None,
         organic=organic,

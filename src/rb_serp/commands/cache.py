@@ -28,6 +28,7 @@ def info(
                 "файл": d["path"],
                 "размер": human_size(d["file_size"]),
                 "записей": d["entries"],
+                "неполных (не отдаются из кэша)": d["incomplete"],
                 "самая старая": d["oldest"] or "—",
                 "самая новая": d["newest"] or "—",
                 "по провайдерам": ", ".join(f"{k}: {v}" for k, v in d["by_provider"].items()) or "—",
@@ -48,7 +49,8 @@ def list_entries(
     """Последние записи журнала (без самих ответов), свежие первыми.
 
     --json: {"ok": true, "count": N, "results": [{id, fetched_at, provider,
-    engine, region, query, page, size}, ...]}; size — сжатый размер ответа.
+    engine, region, query, page, complete, size}, ...]}; size — сжатый размер
+    ответа, complete=false — неполная страница (из кэша не отдаётся).
     """
     rows = [e.model_dump(mode="json") for e in ResponseCache().entries(query=query, limit=limit)]
 
@@ -56,7 +58,7 @@ def list_entries(
         for r in rows:
             output.human.echo(
                 f"{r['fetched_at'][:19]}  {r['provider']:<9} {r['engine']:<7} lr={r['region']:<8} "
-                f"стр.{r['page']}  {r['query']}"
+                f"стр.{r['page']}  {r['query']}{'' if r['complete'] else '  [неполная]'}"
             )
         if not rows:
             output.human.echo("Журнал пуст.")

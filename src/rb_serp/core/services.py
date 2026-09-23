@@ -154,6 +154,7 @@ def sources(pages: list[PageFetch]) -> list[dict]:
             "provider": p.provider,
             "fetched_at": p.fetched_at.isoformat(),
             "from_cache": p.from_cache,
+            "complete": p.complete,
         }
         for p in pages
     ]

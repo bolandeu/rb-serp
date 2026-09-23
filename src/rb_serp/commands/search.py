@@ -79,7 +79,9 @@ def search(
 
     --json: {"ok": true, "count": N, "results": [{serp_position, query,
     searchengine, url, domain, title}, ...], "sources": [{query, engine,
-    page, provider, fetched_at, from_cache}, ...]} (+ "saved_to" при --output).
+    page, provider, fetched_at, from_cache, complete}, ...]} (+ "saved_to"
+    при --output). complete=false — провайдер отдал неполную страницу
+    (повтор и следующий провайдер не помогли); из журнала такая не отдаётся.
     --format table печатает таблицу в stderr по мере готовности запросов;
     csv/domains/domains-se печатают данные в stdout.
 

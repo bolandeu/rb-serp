@@ -16,9 +16,16 @@ from rb_serp.providers import SerpProvider, XmlRiverProvider, XmlStockProvider
 CREDS = {"user": "u", "token": "t"}
 
 
-def xml_docs(*urls: str) -> str:
+def xml_docs(*urls: str, found: int | None = None) -> str:
     groups = "".join(f"<group><doc><url>{url}</url><title>T {url}</title></doc></group>" for url in urls)
-    return f'<?xml version="1.0"?><yandexsearch><response><results>{groups}</results></response></yandexsearch>'
+    found_tag = f"<found>{found}</found>" if found is not None else ""
+    return (
+        f'<?xml version="1.0"?><yandexsearch><response>{found_tag}<results>{groups}</results></response></yandexsearch>'
+    )
+
+
+def urls(n: int, prefix: str = "d") -> tuple[str, ...]:
+    return tuple(f"https://{prefix}{i}.ru/" for i in range(n))
 
 
 def xml_error(code: int, text: str = "oops") -> str:
@@ -144,20 +151,21 @@ def test_legacy_env_vars_are_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
 class _Stub(SerpProvider):
     name = "stub"
 
-    def __init__(self, error: Exception | None, urls: tuple[str, ...]) -> None:
+    def __init__(self, error: Exception | None, urls: tuple[str, ...], found: int | None) -> None:
         self.error = error
         self.urls = urls
+        self.found = found
         self.calls = 0
 
     async def fetch_page(self, request: PageRequest) -> str:
         self.calls += 1
         if self.error:
             raise self.error
-        return xml_docs(*(self.urls or (f"https://{self.name}.ru/{request.page}",)))
+        return xml_docs(*(self.urls or (f"https://{self.name}.ru/{request.page}",)), found=self.found)
 
 
-def Stub(name: str, error: Exception | None = None, urls: tuple[str, ...] = ()) -> _Stub:
-    return type(f"Stub_{name}", (_Stub,), {"name": name})(error, urls)
+def Stub(name: str, error: Exception | None = None, urls: tuple[str, ...] = (), found: int | None = None) -> _Stub:
+    return type(f"Stub_{name}", (_Stub,), {"name": name})(error, urls, found)
 
 
 def test_first_provider_wins() -> None:
@@ -211,13 +219,47 @@ def test_every_answer_is_journaled_and_cache_is_opt_in() -> None:
     assert stub.calls == 2  # без use_cache — всегда живой запрос
     assert ResponseCache().stats().entries == 2
 
-    other = Stub("b")
-    pages = SerpClient(other).fetch_sync(SearchParams(query="q"), use_cache=True)  # провайдер не в ключе
-    assert other.calls == 0
+    again = Stub("a")
+    pages = SerpClient(again).fetch_sync(SearchParams(query="q"), use_cache=True)
+    assert again.calls == 0
     assert pages[0].from_cache and pages[0].provider == "a"
 
-    pages = SerpClient(other).fetch_sync(SearchParams(query="q"), use_cache=True, max_age=timedelta(0))
-    assert other.calls == 1 and not pages[0].from_cache
+    pages = SerpClient(again).fetch_sync(SearchParams(query="q"), use_cache=True, max_age=timedelta(0))
+    assert again.calls == 1 and not pages[0].from_cache
+
+
+def test_cache_serves_only_providers_from_queue_in_order() -> None:
+    SerpClient(Stub("a")).search_sync(SearchParams(query="q"))
+    SerpClient(Stub("b")).search_sync(SearchParams(query="q"))
+
+    other = Stub("c")
+    SerpClient(other).fetch_sync(SearchParams(query="q"), use_cache=True)
+    assert other.calls == 1  # ответ a/b не выдаётся за ответ c
+
+    pages = SerpClient(providers=[Stub("b"), Stub("a")]).fetch_sync(SearchParams(query="q"), use_cache=True)
+    assert (pages[0].from_cache, pages[0].provider) == (True, "b")  # порядок очереди, а не свежесть
+
+
+def test_incomplete_page_is_retried_then_next_provider() -> None:
+    partial, full = Stub("a", urls=urls(2), found=5000), Stub("b", urls=urls(10), found=5000)
+    pages = SerpClient(providers=[partial, full]).fetch_sync(SearchParams(query="q"))
+    assert partial.calls == 2  # повтор у того же провайдера
+    assert (pages[0].provider, pages[0].complete, len(pages[0].data.organic)) == ("b", True, 10)
+    assert ResponseCache().stats().incomplete == 2  # неполные — в истории журнала
+
+
+def test_best_incomplete_page_is_returned_but_not_served_from_cache() -> None:
+    only = Stub("a", urls=urls(3), found=5000)
+    results = SerpClient(only).search_sync(SearchParams(query="q"))
+    assert len(results) == 3  # лучше неполная выдача, чем ошибка
+    pages = SerpClient(Stub("a", urls=urls(3), found=5000)).fetch_sync(SearchParams(query="q"), use_cache=True)
+    assert not pages[0].from_cache and pages[0].complete is False
+
+
+def test_few_results_for_rare_query_is_complete() -> None:
+    stub = Stub("a", urls=urls(3), found=3)
+    pages = SerpClient(stub).fetch_sync(SearchParams(query="q"))
+    assert stub.calls == 1 and pages[0].complete
 
 
 def test_journal_failure_does_not_break_search(tmp_path: Path) -> None:

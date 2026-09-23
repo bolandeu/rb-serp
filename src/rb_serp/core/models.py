@@ -51,15 +51,29 @@ class RelatedItem(BaseModel):
     url: str = ""
 
 
+# Страница неполная, если результатов меньше этого, а поисковик сообщает, что
+# найдено не меньше FOUND_PLENTY: так XML River иногда отдаёт 1–6 позиций из 10.
+MIN_FULL_PAGE = 8
+FOUND_PLENTY = 100
+
+
 class PageData(BaseModel):
     """Всё, что разобрано из одной страницы ответа."""
 
+    no_results: bool = False  # сервис ответил «ничего не найдено» (код 15)
     found: int | None = None
     ai_present: bool | None = None
     organic: list[OrganicItem] = Field(default_factory=list)
     ads: list[AdItem] = Field(default_factory=list)
     related: list[RelatedItem] = Field(default_factory=list)
     knowledge_graph: dict[str, str] = Field(default_factory=dict)
+
+    @property
+    def complete(self) -> bool:
+        """Полная ли страница: такую можно отдавать из журнала как актуальную."""
+        if self.no_results or len(self.organic) >= MIN_FULL_PAGE:
+            return True
+        return self.found is None or self.found < FOUND_PLENTY
 
 
 class PageRequest(BaseModel):
@@ -87,6 +101,7 @@ class PageFetch(BaseModel):
     provider: str
     fetched_at: datetime
     from_cache: bool
+    complete: bool = True
     data: PageData
 
 

@@ -15,6 +15,8 @@ from .serp_xml import parse_page
 log = logging.getLogger(__name__)
 
 _MAX_CONCURRENT = 10
+# Сколько раз просить у провайдера неполную страницу, прежде чем перейти к следующему.
+_INCOMPLETE_ATTEMPTS = 2
 
 
 def organic_items(pages: list[PageFetch], top: int) -> list[tuple[PageFetch, int, OrganicItem]]:
@@ -60,9 +62,14 @@ class SerpClient:
     `AuthRequired`. Отказали все — ошибка (одна — как есть, несколько —
     сводный `ProviderError`).
 
+    Неполная страница (меньше `MIN_FULL_PAGE` результатов при большом
+    `found`) запрашивается повторно, затем у следующего провайдера; если полной
+    так и нет — отдаётся лучшая с `complete=False`.
+
     `cache` — журнал всех ответов (`ResponseCache`): каждый ответ провайдера
     пишется туда всегда; `False` — не писать. Читать из него — только по
-    `use_cache=True` в `fetch`/`search`.
+    `use_cache=True` в `fetch`/`search`, и только полные ответы провайдеров из
+    очереди — в её порядке.
     """
 
     def __init__(
@@ -159,38 +166,68 @@ class SerpClient:
     ) -> PageFetch:
         meta = {"query": request.query, "engine": request.engine, "page": request.page}
         if use_cache and self.cache is not None:
-            hit = self.cache.latest(
-                engine=request.engine, region=request.region, query=request.query, page=request.page, max_age=max_age
-            )
-            if hit is not None:
-                return PageFetch(
-                    **meta, provider=hit.provider, fetched_at=hit.fetched_at, from_cache=True, data=parse_page(hit.xml)
+            # Из журнала — только ответ провайдера из очереди и в её порядке: у
+            # провайдеров разные доп. блоки, ответ одного не подменяет другой.
+            for name in self._names():
+                hit = self.cache.latest(
+                    provider=name,
+                    engine=request.engine,
+                    region=request.region,
+                    query=request.query,
+                    page=request.page,
+                    max_age=max_age,
                 )
+                if hit is not None:
+                    return PageFetch(
+                        **meta, provider=name, fetched_at=hit.fetched_at, from_cache=True, data=parse_page(hit.xml)
+                    )
 
         errors: list[ProviderError | AuthRequired] = []
-        for index, item in enumerate(self._chain):
-            name = item if isinstance(item, str) else item.name
-            try:
-                provider = self._provider(index, instances)
-                async with semaphore:
-                    xml = await provider.fetch_page(request)
-            except (ProviderError, AuthRequired) as exc:
-                errors.append(exc)
-                has_next = index + 1 < len(self._chain)
-                log.warning("Провайдер %s: %s%s", name, exc.message, " — пробую следующий" if has_next else "")
-                continue
-            return PageFetch(
-                **meta, provider=name, fetched_at=self._save(name, request, xml), from_cache=False, data=parse_page(xml)
-            )
+        best: PageFetch | None = None  # самая полная из неполных страниц
+        for index, name in enumerate(self._names()):
+            has_next = index + 1 < len(self._chain)
+            for attempt in range(1, _INCOMPLETE_ATTEMPTS + 1):
+                try:
+                    provider = self._provider(index, instances)
+                    async with semaphore:
+                        xml = await provider.fetch_page(request)
+                except (ProviderError, AuthRequired) as exc:
+                    errors.append(exc)
+                    log.warning("Провайдер %s: %s%s", name, exc.message, " — пробую следующий" if has_next else "")
+                    break
+                data = parse_page(xml)
+                page = PageFetch(
+                    **meta,
+                    provider=name,
+                    fetched_at=self._save(name, request, xml, data.complete),
+                    from_cache=False,
+                    complete=data.complete,
+                    data=data,
+                )
+                if data.complete:
+                    return page
+                log.warning(
+                    "Провайдер %s: [%s] '%s' стр.%d — неполная страница, %d результатов при found=%s (попытка %d/%d)",
+                    name, request.engine, request.query, request.page, len(data.organic), data.found,
+                    attempt, _INCOMPLETE_ATTEMPTS,
+                )  # fmt: skip
+                if best is None or len(data.organic) > len(best.data.organic):
+                    best = page
 
+        if best is not None:
+            log.warning("Полной страницы не получено — отдаю лучшую (complete=false, в --cache не попадёт)")
+            return best
         if len(errors) == 1:
             raise errors[0]
         raise ProviderError(
-            "+".join(item if isinstance(item, str) else item.name for item in self._chain),
+            "+".join(self._names()),
             "все провайдеры отказали: " + "; ".join(exc.message for exc in errors),
         )
 
-    def _save(self, provider: str, request: PageRequest, xml: str) -> datetime:
+    def _names(self) -> list[str]:
+        return [item if isinstance(item, str) else item.name for item in self._chain]
+
+    def _save(self, provider: str, request: PageRequest, xml: str, complete: bool) -> datetime:
         """Записать ответ в журнал; сбой диска не должен ломать уже оплаченный поиск."""
         if self.cache is not None:
             try:
@@ -201,6 +238,7 @@ class SerpClient:
                     query=request.query,
                     page=request.page,
                     xml=xml,
+                    complete=complete,
                 )
             except sqlite3.Error as exc:
                 log.warning("Не удалось записать ответ в журнал %s: %s", self.cache.path, exc)
