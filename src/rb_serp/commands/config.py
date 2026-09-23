@@ -9,7 +9,7 @@ from ..core import services
 from ..core.errors import InvalidArguments
 from ..core.models import ProjectConfig
 
-app = output.group("Manage project configuration.")
+app = output.group("Настройки проекта (.serp/config.toml).")
 
 
 @app.command("list")
@@ -19,7 +19,7 @@ def list_config(
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """List all configuration values."""
+    """Показать все настройки проекта."""
     start = Path(ctx.obj.get("project") or Path.cwd())
     root = services.require_project_root(start)
     config = services.load_config(root)
@@ -31,11 +31,11 @@ def list_config(
 @output.guard
 def get_config(
     ctx: typer.Context,
-    key: str = typer.Argument(..., help="Dotted config key, e.g. providers"),
+    key: str = typer.Argument(..., help="Ключ настройки через точку, например providers или cli.min_version."),
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Get a single configuration value."""
+    """Показать одну настройку."""
     start = Path(ctx.obj.get("project") or Path.cwd())
     root = services.require_project_root(start)
     value: object = services.load_config(root).model_dump()
@@ -52,12 +52,12 @@ def get_config(
 @output.guard
 def set_config(
     ctx: typer.Context,
-    key: str = typer.Argument(..., help="Dotted config key, e.g. providers"),
-    value: str = typer.Argument(..., help="New value (stored as a string)."),
+    key: str = typer.Argument(..., help="Ключ настройки через точку, например providers или cli.min_version."),
+    value: str = typer.Argument(..., help="Новое значение; для providers — список через запятую."),
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Set a single, non-secret configuration value."""
+    """Изменить одну настройку (не секрет — ключи только через auth login)."""
     start = Path(ctx.obj.get("project") or Path.cwd())
     root = services.require_project_root(start)
     data = services.load_config(root).model_dump()

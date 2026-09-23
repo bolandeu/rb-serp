@@ -15,7 +15,7 @@ def status(
     quiet: bool = output.QuietOption,
     verbose: bool = output.VerboseOption,
 ) -> None:
-    """Show the current project's status."""
+    """Показать проект: имя, путь, очередь провайдеров."""
     start = Path(ctx.obj.get("project") or Path.cwd())
     root = services.require_project_root(start)
     output.vecho(ctx, f"Resolved project root: {root}")

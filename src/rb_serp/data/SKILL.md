@@ -1,71 +1,75 @@
 ---
 name: serp
-description: Get Yandex/Google search results (SERP: top-N URLs, domains, titles by query and region) via the `serp` CLI — XML River / XMLStock with fallback. Use whenever a task needs live search results, competitors in the top, or domains ranking for a query (поисковая выдача, топ Яндекса/Google, конкуренты в выдаче). Covers install, --json output, exit codes, credentials.
+description: Поисковая выдача Яндекса и Google (топ-N: URL, домены, заголовки по запросу и региону) через CLI `serp` — провайдеры XML River и XMLStock с фолбэком. Использовать, когда задаче нужна живая выдача, конкуренты в топе или домены по запросу (SERP, search results, top Yandex/Google, competitors). Здесь — установка, --json, коды выхода, доступы.
 ---
 
 # serp
 
-Everything command-specific is in the CLI itself — run `serp`
-with no arguments for version + command list, `serp <command>
---help` for details. This document only covers what `--help` can't tell
-you. If you can run the CLI but not read files, `serp --ai`
-prints this document.
+Всё про конкретные команды есть в самом CLI: `serp` без аргументов —
+версия и список команд, `serp <команда> --help` — подробности и примеры.
+Этот документ — только то, чего `--help` не скажет. Если CLI запускать
+можно, а файлы читать нельзя, этот же текст печатает `serp --ai`.
 
-## Install (if `serp --version` fails)
+## Установка (если `serp --version` не работает)
 
 ```bash
 uv tool install "git+https://github.com/bolandeu/serp.git"
 ```
 
-Same command on macOS, Linux and Windows; `uv tool upgrade rb-serp`
-updates it. Do not run from source unless asked to develop the CLI.
+Одинаково на macOS, Linux и Windows; обновление — `uv tool upgrade rb-serp`
+(пакет называется `rb-serp`, команда — `serp`). Не запускать из исходников,
+если не просили разрабатывать сам CLI.
 
-The repository may be private. On an auth error (`Authentication failed`,
-`could not read Username`, `Repository not found`) do not ask for a token:
-run `gh auth status`; if it passes, `gh auth setup-git` and retry; if not,
-ask the user to run `gh auth login`. With SSH keys configured, this works
-without any of that:
+Репозиторий приватный. При ошибке авторизации (`Authentication failed`,
+`could not read Username`, `Repository not found`) токен не спрашивать:
+выполнить `gh auth status`; если проходит — `gh auth setup-git` и повторить;
+если нет — попросить пользователя выполнить `gh auth login`. С настроенными
+SSH-ключами работает и так:
 
 ```bash
 uv tool install "git+ssh://git@github.com/bolandeu/serp.git"
 ```
 
-## Conventions
+## Правила
 
-- **`--json` on every command.** Parse stdout; never scrape human output.
-  stdout is data only, stderr is diagnostics.
-- **Project-aware.** Commands find the project by walking up from the
-  current directory, or take `--project PATH`. Not initialized →
-  `serp init --non-interactive`.
-- **`--non-interactive`** on anything that could prompt. It fails with a
-  structured error instead of hanging.
-- **Credentials** live in the OS keychain or env vars
-  (`SERP_<PROVIDER>_<FIELD>`), never in arguments or
-  config. Check `auth status --json`; log in with `auth login`; never ask
-  the user to paste a secret into a command line.
-- **Destructive commands** are the ones whose `--help` shows `--dry-run`
-  and `--confirm`. Always: run with `--dry-run`, show the user, get
-  explicit sign-off, then `--confirm --non-interactive`. Never chain
-  straight to `--confirm` without a human having seen the dry-run.
-- **Providers are a queue.** `--provider a,b` (or `providers` in the
-  project config): the first answers, the rest are fallbacks tried in
-  order only if the previous one failed. Default is `xmlriver`.
-- **Searches cost money** (billed per query/page by the provider). Don't
-  re-run the same query in a loop — save with `--output` and reuse it.
-- **`doctor --json`** first when something looks off — it reports
-  project, config, version compatibility and credential readiness.
+- **`--json` у каждой команды.** Разбирать stdout; человеческий вывод не
+  парсить. В stdout — только данные, в stderr — диагностика.
+- **Провайдеры — очередь.** `--provider a,b` (или `providers` в настройках
+  проекта): отвечает первый, остальные — фолбэки по порядку, только если
+  предыдущий упал. По умолчанию `xmlriver`. Список провайдеров и что каждый
+  умеет — в `serp search --help`.
+- **Поиск платный** (провайдер берёт деньги за запрос/страницу). Не
+  повторять один и тот же запрос в цикле — сохранить через `--output` и
+  переиспользовать.
+- **Проект необязателен.** Без него работают настройки по умолчанию;
+  `serp init --non-interactive` создаёт `.serp/config.toml`, чтобы закрепить
+  очередь провайдеров за папкой. Проект ищется вверх от текущей папки или
+  задаётся `--project PATH`.
+- **`--non-interactive`** для всего, что может задать вопрос: вместо
+  зависания будет понятная ошибка.
+- **Доступы** — в связке ключей ОС или в переменных окружения
+  `SERP_<PROVIDER>_<FIELD>` (например `SERP_XMLSTOCK_USER`,
+  `SERP_XMLSTOCK_TOKEN`), никогда в аргументах или настройках. Проверка —
+  `serp auth status --provider <имя> --json`, вход — `serp auth login`.
+  Никогда не просить пользователя вставить секрет в командную строку.
+- **Необратимые команды** — те, у которых в `--help` есть `--dry-run` и
+  `--confirm`. Всегда: сначала `--dry-run`, показать пользователю, получить
+  явное согласие, потом `--confirm --non-interactive`.
+- **Сначала `serp doctor --json`**, если что-то не так: он проверяет
+  проект, настройки, совместимость версий и доступы.
 
-## Errors
+## Ошибки
 
-Error envelope: `{"ok": false, "error": {"code", "message", "action"}}`.
-Read exit code → `error.code` → `error.action` (the concrete next command).
+Ошибка: `{"ok": false, "error": {"code", "message", "action"}}`.
+Порядок: код выхода → `error.code` → `error.action` (конкретная команда,
+которая исправит).
 
-    0  ok
-    1  general (UNEXPECTED = a bug: re-run with --verbose, report; ABORTED = user said no)
-    2  invalid arguments
-    3  auth required          → serp auth login
-    4  project not initialized → serp init
-    5  provider error (network / external service; already retried) → retry later
-    6  CLI too old for this project → uv tool upgrade rb-serp
+    0  успех (пустая выдача — тоже успех, count: 0)
+    1  прочее (UNEXPECTED — баг: повторить с --verbose и сообщить; ABORTED — пользователь отказался)
+    2  неверные аргументы
+    3  нужны доступы              → serp auth login --provider <имя>
+    4  проект не создан           → serp init
+    5  сбой провайдера (сеть, деньги на счёте, лимиты; повторы уже были) → позже или другой провайдер
+    6  CLI старее, чем нужно проекту → uv tool upgrade rb-serp
 
-Only exit 5 is worth an automatic retry.
+Автоматически повторять имеет смысл только код 5.

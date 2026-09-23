@@ -36,6 +36,8 @@ def test_bare_invocation_shows_help_and_exits_zero() -> None:
     result = invoke()
     assert result.exit_code == 0
     assert "Usage:" in result.output
+    assert "Команды" in result.output  # справка по-русски
+    assert "--install-completion" not in result.output
 
 
 @pytest.mark.parametrize("group", ["config", "skill", "auth"])

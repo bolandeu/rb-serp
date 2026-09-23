@@ -11,13 +11,13 @@ from ..core import services
 @output.guard
 def init(
     ctx: typer.Context,
-    name: str | None = typer.Option(None, "--name", help="Project name (defaults to directory name)."),
-    force: bool = typer.Option(False, "--force", help="Overwrite an already-initialized project's config."),
+    name: str | None = typer.Option(None, "--name", help="Имя проекта (по умолчанию — имя папки)."),
+    force: bool = typer.Option(False, "--force", help="Перезаписать настройки уже созданного проекта."),
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
     verbose: bool = output.VerboseOption,
 ) -> None:
-    """Initialize a project: creates .<cli>/config.toml in the target directory."""
+    """Создать проект в папке: .serp/config.toml с очередью провайдеров и min_version."""
     target = Path(ctx.obj.get("project") or Path.cwd()).resolve()
 
     if not force and services.find_project_root(target) == target:

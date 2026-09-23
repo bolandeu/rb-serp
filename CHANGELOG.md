@@ -23,6 +23,8 @@ write them at release time.
 
 ### Added
 
+- Вся справка (`--help`, описания команд, памятка `--ai`) на русском;
+  флаги автодополнения оболочки убраны.
 - Очередь провайдеров с фолбэком: `search --provider a,b`, `providers` в
   `.serp/config.toml`; по умолчанию `xmlriver`.
 - Список провайдеров с их возможностями в `--help` у `search` и `auth`.

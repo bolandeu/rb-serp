@@ -3,6 +3,7 @@ from __future__ import annotations
 from importlib import resources
 
 import typer
+from typer import rich_utils
 
 from . import output
 from .commands import auth, doctor, init, search, skill, status
@@ -15,8 +16,17 @@ _PACKAGE_NAME = __name__.split(".")[0]
 # name + version + description, then every command with the first line of
 # its docstring. No `no_args_is_help` (that exits 2) — main_options() below
 # prints this and exits 0. Shell completion stays enabled.
+# Заголовки справки Typer — по-русски. «Usage:» и «Show this message and exit.»
+# зашиты во встроенный в Typer Click и остаются как есть.
+rich_utils.ARGUMENTS_PANEL_TITLE = "Аргументы"
+rich_utils.OPTIONS_PANEL_TITLE = "Параметры"
+rich_utils.COMMANDS_PANEL_TITLE = "Команды"
+rich_utils.DEFAULT_STRING = "[по умолчанию: {}]"
+rich_utils.REQUIRED_LONG_STRING = "[обязательный]"
+
 app = typer.Typer(
-    help=f"{CLI_NAME} {installed_version() or DEV_VERSION} — {package_summary() or 'project-aware automation CLI'}"
+    add_completion=False,
+    help=f"{CLI_NAME} {installed_version() or DEV_VERSION} — {package_summary() or 'поисковая выдача'}",
 )
 
 app.add_typer(config_cmd.app, name="config")
@@ -53,21 +63,23 @@ def _ai_callback(value: bool) -> None:
 @app.callback(invoke_without_command=True)
 def main_options(
     ctx: typer.Context,
-    project: str = typer.Option(None, "--project", help="Path to the project root."),
-    json_output: bool = typer.Option(False, "--json", help="Emit machine-readable JSON output."),
-    quiet: bool = typer.Option(False, "--quiet", help="Suppress non-essential output."),
-    verbose: bool = typer.Option(False, "--verbose", help="Emit extra diagnostic output."),
-    non_interactive: bool = typer.Option(False, "--non-interactive", help="Never prompt; fail instead."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would happen without making changes."),
+    project: str = typer.Option(None, "--project", help="Путь к корню проекта (иначе ищется вверх от текущей папки)."),
+    json_output: bool = typer.Option(False, "--json", help="Машиночитаемый вывод: JSON в stdout."),
+    quiet: bool = typer.Option(False, "--quiet", help="Не печатать ничего, кроме данных."),
+    verbose: bool = typer.Option(False, "--verbose", help="Подробная диагностика в stderr."),
+    non_interactive: bool = typer.Option(
+        False, "--non-interactive", help="Никогда не спрашивать; при нехватке данных — ошибка."
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Показать, что будет сделано, ничего не меняя."),
     version: bool = typer.Option(
-        False, "--version", callback=_version_callback, is_eager=True, help="Show the version and exit."
+        False, "--version", callback=_version_callback, is_eager=True, help="Показать версию и выйти."
     ),
     ai: bool = typer.Option(
         False,
         "--ai",
         callback=_ai_callback,
         is_eager=True,
-        help="Print AI-oriented usage documentation (the bundled skill doc) and exit.",
+        help="Напечатать памятку для AI-агентов (SKILL.md) и выйти.",
     ),
 ) -> None:
     ctx.ensure_object(dict)

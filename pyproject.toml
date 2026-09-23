@@ -1,7 +1,7 @@
 [project]
 name = "rb-serp"
 version = "0.1.0"
-description = "Поисковая выдача Yandex/Google через SERP-провайдеров (XML River по умолчанию): библиотека и CLI"
+description = "Поисковая выдача Яндекса и Google через SERP-провайдеров (XML River, XMLStock) с фолбэком: CLI serp и библиотека rb_serp"
 readme = "README.md"
 authors = [{ name = "bolandeu" }]
 requires-python = ">=3.11"

@@ -8,7 +8,7 @@ import typer
 from .. import output
 from ..core.version import CLI_NAME
 
-app = output.group("Install this CLI's agent skill for AI tools.")
+app = output.group("Памятка serp для AI-агентов.")
 
 _PACKAGE_NAME = __name__.split(".")[0]
 
@@ -36,15 +36,15 @@ def install(
     tool: str = typer.Option(
         "claude-code",
         "--tool",
-        help=f"Target AI tool: one of {', '.join(_TOOL_TARGETS)}.",
+        help=f"Для какого AI-инструмента: {', '.join(_TOOL_TARGETS)}.",
     ),
     project: bool = typer.Option(
-        False, "--project", help="Install into the current project instead of the user-level directory."
+        False, "--project", help="Установить в текущий проект, а не для пользователя (во все проекты)."
     ),
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Copy this CLI's bundled SKILL.md into an AI tool's skill directory."""
+    """Скопировать памятку SKILL.md в папку навыков AI-инструмента."""
     from ..core.errors import InvalidArguments
 
     if tool not in _TOOL_TARGETS:

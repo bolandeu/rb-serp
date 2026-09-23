@@ -45,10 +45,10 @@ def doctor(
     quiet: bool = output.QuietOption,
     verbose: bool = output.VerboseOption,
 ) -> None:
-    """Run diagnostic checks and report readiness.
+    """Диагностика: версия, проект, настройки, связка ключей, доступы провайдеров.
 
-    Always exits 0 — the report itself is the result; `healthy` says
-    whether every check passed.
+    Всегда завершается с кодом 0 — результат это сам отчёт; `healthy`
+    говорит, прошли ли все проверки.
     """
     checks: list[dict] = [{"name": "python", "ok": True}]
     checks.append({"name": "cli_version", "ok": True, "detail": installed_version() or DEV_VERSION})

@@ -7,7 +7,7 @@ from ..core.errors import InvalidArguments
 from ..credentials import manager as credentials
 from ..providers import provider_class, providers_help
 
-app = output.group("Manage credentials.")
+app = output.group("Доступы к провайдерам (ключи в связке ключей ОС).")
 
 ProviderOption = typer.Option("xmlriver", "--provider", help=f"Провайдер. Доступны: {providers_help()}.")
 
@@ -21,11 +21,11 @@ def login(
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Store a provider's credential fields in the OS keychain.
+    """Сохранить доступы провайдера в связку ключей ОС.
 
-    Each field is taken from SERP_<PROVIDER>_<FIELD> (e.g. SERP_XMLRIVER_USER,
-    SERP_XMLRIVER_TOKEN) when set, otherwise prompted for. With
-    --non-interactive, a missing field is an error instead of a prompt.
+    Каждое поле берётся из переменной SERP_<PROVIDER>_<FIELD> (например
+    SERP_XMLSTOCK_USER, SERP_XMLSTOCK_TOKEN), если она задана, иначе
+    спрашивается. С --non-interactive недостающее поле — ошибка, а не вопрос.
     """
     fields = provider_class(provider).credential_fields
     values = credentials.read_fields_from_env(provider, list(fields))
@@ -51,7 +51,7 @@ def logout(
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Remove a provider's credential from the OS keychain."""
+    """Удалить доступы провайдера из связки ключей ОС."""
     provider_class(provider)
     credentials.delete_credential(provider)
     output.emit_success(
@@ -69,7 +69,7 @@ def auth_status(
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Check whether every credential field of a provider is available (env or keychain)."""
+    """Проверить, что все доступы провайдера есть (в env или связке ключей)."""
     authenticated = provider_class(provider).load_credential() is not None
     output.emit_success(
         ctx,
