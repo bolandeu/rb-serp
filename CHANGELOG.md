@@ -8,6 +8,8 @@ write them at release time.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-23
+
 ### Changed
 
 - Одна команда `serp` (вместо `rb-serp` и `serp`); Python-пакет
