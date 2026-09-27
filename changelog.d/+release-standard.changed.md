@@ -1,1 +1,0 @@
-Шаблон cli-generator v1.2.0 и стандарт релизов tools: версия берётся из git-тега (`version =` в pyproject.toml больше нет), changelog собирается из фрагментов `changelog.d/`, единый гейт `uv run scripts/release.py --check`. У каждой команды в справке есть строка `Example:`; справка закреплена снапшотами.

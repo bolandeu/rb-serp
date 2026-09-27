@@ -10,6 +10,14 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.4.0] - 2026-09-27
+
+### Changed
+
+- Ломающее: `serp auth status` отдаёт общий отчёт инструментов (standard-release §8) вместо `{"provider", "authenticated"}` — все провайдеры сразу: источник, статус, остаток; `--provider` теперь фильтр (по умолчанию — все). Код 3, если xmlriver не в порядке или любой ключ неверен. `--check` проверяет ключи бесплатным запросом баланса (XML River, XMLStock) и показывает остаток в рублях; xmlstock помечен как необязательный.
+- Шаблон cli-generator v1.2.0 и стандарт релизов tools: версия берётся из git-тега (`version =` в pyproject.toml больше нет), changelog собирается из фрагментов `changelog.d/`, единый гейт `uv run scripts/release.py --check`. У каждой команды в справке есть строка `Example:`; справка закреплена снапшотами.
+
+
 ## [0.3.0] - 2026-09-23
 
 ### Added
