@@ -59,9 +59,8 @@ def snippets(
     pubdate, cachelink, contenttype}, ...], "sources": [...]}.
 
     \b
-    Примеры:
-      serp snippets "купить диван" --cache
-      serp snippets "купить диван" -e google --top 20 --json
+    Example: serp snippets "купить диван" --cache
+             serp snippets "купить диван" -e google --top 20 --json
     """
     pages = q.collect(
         ctx, queries, engine=engine, top=top, yandex_lr=yandex_lr, google_loc=google_loc,
@@ -102,9 +101,8 @@ def ads(
     "sources": [...]}.
 
     \b
-    Примеры:
-      serp ads "купить диван" -p xmlstock
-      serp ads "купить диван" -p xmlstock --cache --json
+    Example: serp ads "купить диван" -p xmlstock
+             serp ads "купить диван" -p xmlstock --cache --json
     """
     pages = q.collect(
         ctx, queries, engine=engine, top=10, yandex_lr=yandex_lr, google_loc=google_loc,
@@ -143,9 +141,8 @@ def related(
     text, snippet, url}, ...], "sources": [...]}.
 
     \b
-    Примеры:
-      serp related "купить диван" -e google -p xmlstock
-      serp related "купить диван" -e google --cache --json
+    Example: serp related "купить диван" -e google -p xmlstock
+             serp related "купить диван" -e google --cache --json
     """
     pages = q.collect(
         ctx, queries, engine=engine, top=10, yandex_lr=yandex_lr, google_loc=google_loc,
@@ -180,8 +177,7 @@ def summary(
     ai_present, organic, ads, related, knowledge_graph}, ...], "sources": [...]}.
 
     \b
-    Примеры:
-      serp summary "купить диван" -e both --cache
+    Example: serp summary "купить диван" -e both --cache
     """
     pages = q.collect(
         ctx, queries, engine=engine, top=10, yandex_lr=yandex_lr, google_loc=google_loc,

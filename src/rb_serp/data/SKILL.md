@@ -61,7 +61,9 @@ uv tool install "git+ssh://git@github.com/bolandeu/serp.git"
 - **Доступы** — в связке ключей ОС или в переменных окружения
   `SERP_<PROVIDER>_<FIELD>` (например `SERP_XMLSTOCK_USER`,
   `SERP_XMLSTOCK_TOKEN`), никогда в аргументах или настройках. Проверка —
-  `serp auth status --provider <имя> --json`, вход — `serp auth login`.
+  `serp auth status --check --json`: по каждому провайдеру источник, статус,
+  срок и остаток — без значений; код 3, если обязательный провайдер не в
+  порядке. Вход — `serp auth login`.
   Никогда не просить пользователя вставить секрет в командную строку.
 - **Необратимые команды** — те, у которых в `--help` есть `--dry-run` и
   `--confirm`. Всегда: сначала `--dry-run`, показать пользователю, получить

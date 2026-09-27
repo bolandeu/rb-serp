@@ -86,14 +86,13 @@ def search(
     csv/domains/domains-se печатают данные в stdout.
 
     \b
-    Примеры:
-      serp search "python разработка"
-      serp search "seo" "продвижение" --engine both --top 20
-      serp search "такси" --yandex-lr 2 --format domains
-      serp search "ремонт" -e google --google-loc 1012153
-      serp search "запрос" -e both -p xmlstock,xmlriver   # xmlriver — фолбэк
-      serp search "запрос" --cache --max-age 7d          # из журнала, если свежее недели
-      serp search "запрос" --json --output results.csv
+    Example: serp search "python разработка"
+             serp search "seo" "продвижение" --engine both --top 20
+             serp search "такси" --yandex-lr 2 --format domains
+             serp search "ремонт" -e google --google-loc 1012153
+             serp search "запрос" -e both -p xmlstock,xmlriver   # xmlriver — фолбэк
+             serp search "запрос" --cache --max-age 7d          # из журнала, если свежее недели
+             serp search "запрос" --json --output results.csv
     """
     show_table = fmt is Format.table and q.human_mode(ctx)
     pages = q.collect(

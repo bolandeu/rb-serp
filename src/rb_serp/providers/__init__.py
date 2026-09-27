@@ -3,12 +3,15 @@
 Новый провайдер: подкласс `SerpProvider` в своём модуле + строка в
 `PROVIDERS`. Дальше он доступен по имени в `serp search --provider`,
 `serp auth login --provider` и в `providers` конфига проекта.
+
+Каждый провайдер реализует `health_check()` — на нём держится
+`serp auth status --check` (см. `base.Provider`).
 """
 
 from __future__ import annotations
 
 from ..core.errors import InvalidArguments
-from .base import SerpProvider
+from .base import Health, Provider, Quota, SerpProvider, all_providers
 from .xmlriver import XmlRiverProvider
 from .xmlstock import XmlStockProvider
 
@@ -30,4 +33,15 @@ def provider_class(name: str) -> type[SerpProvider]:
         raise InvalidArguments(f"Неизвестный провайдер '{name}'. Доступны: {', '.join(PROVIDERS)}.") from None
 
 
-__all__ = ["PROVIDERS", "SerpProvider", "XmlRiverProvider", "XmlStockProvider", "provider_class", "providers_help"]
+__all__ = [
+    "PROVIDERS",
+    "Health",
+    "Provider",
+    "Quota",
+    "SerpProvider",
+    "XmlRiverProvider",
+    "XmlStockProvider",
+    "all_providers",
+    "provider_class",
+    "providers_help",
+]

@@ -1,0 +1,25 @@
+
+ Usage: serp auth status [OPTIONS]
+
+ Доступы всех провайдеров: откуда взяты и работают ли. Значения не печатаются.
+
+ Без --check — только наличие (статус `unchecked` или `missing`). С --check —
+ бесплатный запрос баланса у каждого провайдера: `ok`, `invalid` (ключ отклонён),
+ `quota_exhausted` (баланс ≤ 0), `unreachable`; остаток в `quota` (рубли).
+ xmlriver обязателен, xmlstock — запасной (optional). Код 0 — обязательные в
+ порядке; 3 — обязательный не в порядке или любой ключ неверен; 2 — неизвестный
+ провайдер. Форма --json — общий контракт инструментов: `tool`, `version`,
+ `checked_at`, `credentials[]` с `provider`, `required`, `fields`, `source`,
+ `source_ref`, `status`, `expires_at`, `quota`, `message`.
+
+ Example: serp auth status --check --json
+
+╭─ Параметры ──────────────────────────────────────────────────────────────────────────────────────╮
+│ --check                  Проверить каждый провайдер бесплатным запросом баланса (до 10 с).       │
+│ --provider        <str>  Только этот провайдер (по умолчанию все). Доступны: xmlriver (XML River │
+│                          — yandex и google); xmlstock (XMLStock — yandex и google).              │
+│ --json                   Машиночитаемый вывод: JSON в stdout.                                    │
+│ --quiet                  Не печатать ничего, кроме данных.                                       │
+│ --help                   Show this message and exit.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

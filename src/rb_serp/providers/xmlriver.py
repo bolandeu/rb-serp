@@ -9,12 +9,15 @@ import httpx
 from ..core.errors import AuthRequired, ProviderError
 from ..core.models import PageRequest
 from ..core.serp_xml import parse_page, response_error
-from .base import SerpProvider
+from .base import Health, Quota, SerpProvider
 
 log = logging.getLogger(__name__)
 
 _BASE_URL_YANDEX = "https://xmlriver.com/search_yandex/xml"
 _BASE_URL_GOOGLE = "https://xmlriver.com/search/xml"
+# Баланс в рублях простым текстом (`144.575`); бесплатно. Неверный ключ — XML с <error code="42">.
+_BALANCE_URL = "https://xmlriver.com/api/get_balance/"
+_HEALTH_TIMEOUT = 10.0
 _MAX_ATTEMPTS = 10
 _RETRY_DELAY = 1.0
 _RETRY_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
@@ -41,6 +44,8 @@ class XmlRiverProvider(SerpProvider):
     summary = "XML River — yandex и google"
     credential_fields = ("user", "token")
     legacy_env = {"user": "XMLRIVER_USER", "token": "XMLRIVER_TOKEN"}  # noqa: RUF012 — ClassVar в базе
+    # Тестовый шов для health_check (синхронный запрос, в отличие от fetch_page).
+    health_transport: httpx.BaseTransport | None = None
 
     def __init__(
         self,
@@ -87,6 +92,41 @@ class XmlRiverProvider(SerpProvider):
                 }
             )
         return base
+
+    def _balance_request(self) -> tuple[str, dict]:
+        return _BALANCE_URL, {"user": self._user, "key": self._token}
+
+    def _parse_balance(self, text: str) -> float:
+        """Баланс в рублях из ответа; ошибка доступа — AuthRequired, прочее — ProviderError."""
+        try:
+            return float(text.strip())
+        except ValueError:
+            pass
+        try:
+            error = response_error(text)
+        except ET.ParseError:
+            error = None
+        if error is not None and error[0] in _AUTH_ERRORS:
+            raise AuthRequired(self.name)
+        raise ProviderError(self.name, f"баланс: неожиданный ответ ({error[1] if error else text[:100]!r})")
+
+    def health_check(self) -> Health:
+        """Баланс счёта — бесплатный запрос, заодно проверка логина и ключа. Без повторов, до 10 с."""
+        url, params = self._balance_request()
+        try:
+            with httpx.Client(timeout=_HEALTH_TIMEOUT, transport=self.health_transport) as client:
+                response = client.get(url, params=params)
+        except httpx.TransportError as exc:
+            raise ProviderError(self.name, f"баланс: {type(exc).__name__}") from None
+        if response.status_code in (401, 403):
+            raise AuthRequired(self.name)
+        if response.is_error:
+            raise ProviderError(self.name, f"баланс: HTTP {response.status_code}", status=response.status_code)
+        balance = self._parse_balance(response.text)
+        quota = Quota(remaining=int(balance), unit="rub")
+        if balance <= 0:
+            return Health(status="quota_exhausted", quota=quota, message=f"баланс {balance:g} ₽ — пополнить счёт")
+        return Health(quota=quota)
 
     def _http(self) -> httpx.AsyncClient:
         if self._client is None:

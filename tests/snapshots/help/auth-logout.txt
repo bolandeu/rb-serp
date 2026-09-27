@@ -1,0 +1,16 @@
+
+ Usage: serp auth logout [OPTIONS]
+
+ Удалить доступы провайдера из связки ключей ОС.
+
+ Example: serp auth logout --provider xmlstock
+
+╭─ Параметры ──────────────────────────────────────────────────────────────────────────────────────╮
+│ --provider        <str>  Провайдер. Доступны: xmlriver (XML River — yandex и google); xmlstock   │
+│                          (XMLStock — yandex и google).                                           │
+│                          [по умолчанию: xmlriver]                                                │
+│ --json                   Машиночитаемый вывод: JSON в stdout.                                    │
+│ --quiet                  Не печатать ничего, кроме данных.                                       │
+│ --help                   Show this message and exit.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

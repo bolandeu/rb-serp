@@ -44,7 +44,10 @@ def install(
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Скопировать памятку SKILL.md в папку навыков AI-инструмента."""
+    """Скопировать памятку SKILL.md в папку навыков AI-инструмента.
+
+    Example: {cli} skill install --tool claude-code
+    """
     from ..core.errors import InvalidArguments
 
     if tool not in _TOOL_TARGETS:

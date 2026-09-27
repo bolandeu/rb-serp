@@ -121,6 +121,8 @@ def test_config_set_unknown_key_fails_without_persisting(tmp_path: Path) -> None
 
 
 def test_min_version_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Pin the installed version: an untagged checkout builds as 0.0.0, which the gate skips.
+    monkeypatch.setattr(services, "installed_version", lambda: "1.0.0")
     init(tmp_path)
     assert invoke("--project", str(tmp_path), "config", "set", "cli.min_version", "99.0.0").exit_code == 0
 
@@ -156,7 +158,8 @@ def test_doctor_reports_config_parse_error(tmp_path: Path) -> None:
     assert config_check["detail"]
 
 
-def test_doctor_reports_incompatible_cli_instead_of_failing(tmp_path: Path) -> None:
+def test_doctor_reports_incompatible_cli_instead_of_failing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(services, "installed_version", lambda: "1.0.0")
     init(tmp_path)
     invoke("--project", str(tmp_path), "config", "set", "cli.min_version", "99.0.0")
 

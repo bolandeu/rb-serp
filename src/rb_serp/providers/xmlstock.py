@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import json
+
+from ..core.errors import AuthRequired, ProviderError
 from ..core.models import PageRequest
 from .xmlriver import XmlRiverProvider
 
 _BASE_URL_YANDEX = "https://xmlstock.com/yandexlive/xml/"
 _BASE_URL_GOOGLE = "https://xmlstock.com/google/xml/"
+# JSON `{"balance": 145.62, "limits": 0, ...}`; бесплатно. Неверный ключ — текст `ERROR_VERIFICATION_KEY`.
+_BALANCE_URL = "https://xmlstock.com/api/"
 
 
 class XmlStockProvider(XmlRiverProvider):
@@ -22,6 +27,8 @@ class XmlStockProvider(XmlRiverProvider):
     summary = "XMLStock — yandex и google"
     credential_fields = ("user", "token")
     legacy_env = {}  # noqa: RUF012 — ClassVar в базе
+    # Запасной провайдер: по умолчанию очередь — только xmlriver, без XMLStock serp работает.
+    required = False
 
     def _base_url(self, engine: str) -> str:
         return _BASE_URL_YANDEX if engine == "yandex" else _BASE_URL_GOOGLE
@@ -34,3 +41,18 @@ class XmlStockProvider(XmlRiverProvider):
             base.update({"lr": request.google_loc, "hl": "ru"})
         base.update({"ads": 1, "related": 1})  # бесплатные доп. блоки: реклама и похожие запросы
         return base
+
+    def _balance_request(self) -> tuple[str, dict]:
+        return _BALANCE_URL, {"do": "balance", "user": self._user, "key": self._token}
+
+    def _parse_balance(self, text: str) -> float:
+        try:
+            data = json.loads(text)
+        except ValueError:
+            data = None
+        if isinstance(data, dict) and isinstance(data.get("balance"), int | float):
+            return float(data["balance"])
+        answer = text.strip()
+        if answer.startswith("ERROR_") and ("KEY" in answer or "USER" in answer):
+            raise AuthRequired(self.name)
+        raise ProviderError(self.name, f"баланс: неожиданный ответ ({answer[:100]!r})")

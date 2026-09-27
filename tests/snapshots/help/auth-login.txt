@@ -1,0 +1,21 @@
+
+ Usage: serp auth login [OPTIONS]
+
+ Сохранить доступы провайдера в связку ключей ОС.
+
+ Каждое поле берётся из переменной SERP_<PROVIDER>_<FIELD> (например
+ SERP_XMLSTOCK_USER, SERP_XMLSTOCK_TOKEN), если она задана, иначе
+ спрашивается. С --non-interactive недостающее поле — ошибка, а не вопрос.
+
+ Example: serp auth login --provider xmlriver
+
+╭─ Параметры ──────────────────────────────────────────────────────────────────────────────────────╮
+│ --provider               <str>  Провайдер. Доступны: xmlriver (XML River — yandex и google);     │
+│                                 xmlstock (XMLStock — yandex и google).                           │
+│                                 [по умолчанию: xmlriver]                                         │
+│ --non-interactive               Никогда не спрашивать; при нехватке данных — ошибка.             │
+│ --json                          Машиночитаемый вывод: JSON в stdout.                             │
+│ --quiet                         Не печатать ничего, кроме данных.                                │
+│ --help                          Show this message and exit.                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

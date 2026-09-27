@@ -204,13 +204,27 @@ SearchParams(
 ```bash
 uv sync
 uv run serp --help
-uv run ruff check . && uv run ruff format --check . && uv run ty check && uv run pytest
-scripts/install_hooks.sh     # pre-commit: предупреждает об устаревших docstring команд
-uv tool install --editable .  # глобальная команда из рабочей копии
+uv run scripts/release.py --check   # весь гейт — перед каждым коммитом
+scripts/install_hooks.sh            # один раз на клон: git берёт хуки из .githooks/
+uv run pytest --snapshot-update     # после правки справки команды; читать diff tests/snapshots/help/
+uv tool install --editable .        # глобальная команда из рабочей копии
 ```
 
-`pytest` падает ниже порога покрытия из `pyproject.toml`; CI дополнительно проверяет
-`uv.lock` на известные уязвимости (OSV-Scanner).
+Гейт (`release.py --check`): `uv lock --check`, ruff (с правилами безопасности `S`),
+ty, pytest (порог покрытия, контракт справки и её снапшоты, форма `auth status`),
+changelog-фрагмент, сборка wheel с установкой во временный venv и проверкой
+`serp --version`, `osv-scanner` по `uv.lock` (если установлен). CI необязателен и
+запускает только его.
 
-Релиз: `uv run scripts/release.py patch|minor|major` — поднимает версию, датирует
-`CHANGELOG.md`, коммитит, ставит тег и пушит. Версию руками не править.
+Версия — git-тег `vX.Y.Z`, в `pyproject.toml` строки `version =` нет. `CHANGELOG.md`
+руками не правится: каждое изменение — фрагмент в `changelog.d/`.
+
+```bash
+uv run towncrier create +<slug>.<type>.md -c "Что изменилось, для человека."
+uv run scripts/release.py patch   # или minor / major (на 0.x: patch — фикс/фича, minor — ломающее)
+git push --follow-tags
+```
+
+`release.py` работает только с чистого `main`, не отстающего от origin: гейт,
+сборка `CHANGELOG.md` из фрагментов, коммит `Release vX.Y.Z`, аннотированный тег;
+push — вручную.

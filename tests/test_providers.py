@@ -11,7 +11,15 @@ from rb_serp import AuthRequired, ProviderError, SearchParams, SerpClient
 from rb_serp.core.cache import ResponseCache
 from rb_serp.core.errors import InvalidArguments
 from rb_serp.core.models import PageRequest
-from rb_serp.providers import SerpProvider, XmlRiverProvider, XmlStockProvider
+from rb_serp.providers import (
+    PROVIDERS,
+    Health,
+    Provider,
+    SerpProvider,
+    XmlRiverProvider,
+    XmlStockProvider,
+    all_providers,
+)
 
 CREDS = {"user": "u", "token": "t"}
 
@@ -266,3 +274,105 @@ def test_journal_failure_does_not_break_search(tmp_path: Path) -> None:
     (tmp_path / "db.sqlite").mkdir()  # на месте файла базы — каталог: sqlite не откроет
     client = SerpClient(Stub("a"), cache=ResponseCache(tmp_path / "db.sqlite"))
     assert client.search_sync(SearchParams(query="q"))[0].domain == "a.ru"
+
+
+# --- health_check: бесплатный запрос баланса (auth status --check) ------------------
+
+
+def with_balance(monkeypatch: pytest.MonkeyPatch, cls: type[XmlRiverProvider], reply: httpx.Response | Exception):
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    monkeypatch.setattr(cls, "health_transport", httpx.MockTransport(handler))
+    return cls(CREDS), seen
+
+
+def test_xmlriver_health_reads_balance(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider, seen = with_balance(monkeypatch, XmlRiverProvider, httpx.Response(200, text="144.575"))
+    health = provider.health_check()
+    assert (health.status, health.quota and health.quota.remaining, health.quota and health.quota.unit) == (
+        "ok",
+        144,
+        "rub",
+    )
+    assert seen[0].url.path == "/api/get_balance/" and seen[0].url.params["key"] == "t"
+
+
+def test_xmlstock_health_reads_balance(monkeypatch: pytest.MonkeyPatch) -> None:
+    body = '{"limits":0,"outgo-day":0,"balance":145.62,"days":0}'
+    provider, seen = with_balance(monkeypatch, XmlStockProvider, httpx.Response(200, text=body))
+    assert provider.health_check().quota.remaining == 145  # type: ignore[union-attr]
+    assert seen[0].url.params["do"] == "balance"
+
+
+@pytest.mark.parametrize(
+    ("cls", "reply"),
+    [
+        (XmlRiverProvider, httpx.Response(200, text=xml_error(42, "Ключ содержит ошибку"))),
+        (XmlRiverProvider, httpx.Response(403)),
+        (XmlStockProvider, httpx.Response(200, text="ERROR_VERIFICATION_KEY")),
+    ],
+)
+def test_health_rejected_key_is_auth_required(monkeypatch: pytest.MonkeyPatch, cls, reply) -> None:
+    provider, _ = with_balance(monkeypatch, cls, reply)
+    with pytest.raises(AuthRequired):
+        provider.health_check()
+
+
+@pytest.mark.parametrize("reply", [httpx.Response(502), httpx.Response(200, text="<html>"), httpx.ConnectError("down")])
+def test_health_outage_is_provider_error(monkeypatch: pytest.MonkeyPatch, reply) -> None:
+    provider, seen = with_balance(monkeypatch, XmlRiverProvider, reply)
+    with pytest.raises(ProviderError):
+        provider.health_check()
+    assert len(seen) == 1  # без повторов
+
+
+def test_health_empty_balance_is_quota_exhausted(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider, _ = with_balance(monkeypatch, XmlRiverProvider, httpx.Response(200, text="0"))
+    assert provider.health_check().status == "quota_exhausted"
+
+
+# --- provider contract: every provider can prove its credential works -------------
+
+
+@pytest.mark.parametrize("provider_cls", all_providers(), ids=lambda cls: cls.name)
+def test_every_provider_implements_health_check(provider_cls: type[Provider], monkeypatch: pytest.MonkeyPatch) -> None:
+    assert provider_cls.health_check is not Provider.health_check, (
+        f"{provider_cls.__name__} must implement health_check() — `auth status --check` calls it"
+    )
+    # auth status --check instantiates providers without arguments (only when the credential is present)
+    for field in provider_cls.credential_fields:
+        monkeypatch.setenv(f"SERP_{provider_cls.name.upper()}_{field.upper()}", "x")
+    provider_cls()
+
+
+def test_all_providers_are_the_registry() -> None:
+    names = [cls.name for cls in all_providers()]
+    assert len(names) == len(set(names)), f"duplicate provider names: {names}"
+    assert sorted(names) == sorted(PROVIDERS)
+
+
+def test_all_providers_discovers_package_classes_only() -> None:
+    class Found(Provider):
+        __module__ = "rb_serp.providers.fake"
+        name = "found"
+
+        def health_check(self) -> Health:
+            return Health()
+
+    class Base(Provider):
+        __module__ = "rb_serp.providers.fake"
+        abstract = True
+
+    class Elsewhere(Provider):  # defined outside providers/: not discovered
+        name = "elsewhere"
+
+    discovered = all_providers()
+    assert Found in discovered
+    assert Base not in discovered
+    assert Elsewhere not in discovered

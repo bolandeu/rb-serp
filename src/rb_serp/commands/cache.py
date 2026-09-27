@@ -17,7 +17,10 @@ def info(
     json_output: bool = output.JsonOption,
     quiet: bool = output.QuietOption,
 ) -> None:
-    """Размер журнала, число записей, самая старая и новая, разбивка по провайдерам."""
+    """Размер журнала, число записей, самая старая и новая, разбивка по провайдерам.
+
+    Example: {cli} cache info --json
+    """
     stats = ResponseCache().stats()
     output.emit_success(
         ctx,
@@ -51,6 +54,8 @@ def list_entries(
     --json: {"ok": true, "count": N, "results": [{id, fetched_at, provider,
     engine, region, query, page, complete, size}, ...]}; size — сжатый размер
     ответа, complete=false — неполная страница (из кэша не отдаётся).
+
+    Example: {cli} cache list -q диван
     """
     rows = [e.model_dump(mode="json") for e in ResponseCache().entries(query=query, limit=limit)]
 
@@ -85,6 +90,8 @@ def clear(
 
     --json: {"ok": true, "deleted": N} (при --dry-run — {"dry_run": true,
     "would_delete": N}).
+
+    Example: {cli} cache clear --older-than 30d --dry-run
     """
     if all_entries == (older_than is not None):
         raise InvalidArguments("Укажите ровно одно: --older-than <срок> или --all.")

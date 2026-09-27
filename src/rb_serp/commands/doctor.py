@@ -50,6 +50,8 @@ def doctor(
 
     Всегда завершается с кодом 0 — результат это сам отчёт; `healthy`
     говорит, прошли ли все проверки.
+
+    Example: {cli} doctor --json
     """
     checks: list[dict] = [{"name": "python", "ok": True}]
     checks.append({"name": "cli_version", "ok": True, "detail": installed_version() or DEV_VERSION})

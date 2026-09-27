@@ -51,6 +51,31 @@ class AuthRequired(CliError):
         )
 
 
+class CredentialsUnhealthy(CliError):
+    def __init__(self, problems: dict[str, str]) -> None:
+        listed = ", ".join(f"{provider} ({status})" for provider, status in problems.items())
+        super().__init__(
+            "CREDENTIALS_UNHEALTHY",
+            f"{len(problems)} credential(s) need attention: {listed}.",
+            action=f"See each entry's `message`; store a credential with '{_CLI} auth login --provider <name>'.",
+            exit_code=3,
+        )
+
+
+class DependencyTooOld(CliError):
+    """Another CLI this one calls is missing or older than required (core/deps.py)."""
+
+    def __init__(self, name: str, installed: str | None, required: str) -> None:
+        found = "is not installed" if installed is None else f"is {installed}"
+        fix = f"uv tool upgrade {name}" if installed is not None else f"uv tool install <{name} repo URL>@v{required}"
+        super().__init__(
+            "DEPENDENCY_TOO_OLD",
+            f"'{name}' {found}; {_CLI} needs {name} >= {required}.",
+            action=f"Run '{fix}', then retry.",
+            exit_code=1,
+        )
+
+
 class InvalidArguments(CliError):
     def __init__(self, message: str) -> None:
         super().__init__("INVALID_ARGUMENTS", message, exit_code=2)
