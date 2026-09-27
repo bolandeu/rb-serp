@@ -1,9 +1,14 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v1.2.0
+_commit: v1.2.7
 _src_path: gh:bolandeu/cli-generator
 author_name: bolandeu
+cli_name: serp
 description: Поисковая выдача Yandex/Google через SERP-провайдеров (XML River по умолчанию)
+dist_name: rb-serp
+dist_name_legacy: ''
 include_auth: true
+include_ci: true
 package_name: rb_serp
+private_deps: false
 project_name: serp
 repository_url: https://github.com/bolandeu/serp

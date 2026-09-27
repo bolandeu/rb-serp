@@ -69,9 +69,11 @@ changed with no changelog fragment on the branch.
 
 Python package `rb_serp` (distribution `rb-serp`), but everything a user
 sees is `serp`: the command, `SERP_<PROVIDER>_<FIELD>` env vars, keychain
-entries `serp:<provider>`, the `.serp/` project dir. That split lives in
-`core/version.py` (`CLI_NAME`, `DIST_NAME`) — use those, never
-`__name__.split(".")[0]`, for anything user-facing.
+entries `serp:<provider>`, the `.serp/` project dir. The command name comes
+from `core.version.cli_name()` (the console script), the distribution from
+`_distribution.DIST_NAME` — use those, never `__name__.split(".")[0]`, for
+anything user-facing. These names are read by other tools (wordstat reads
+`serp:*` / `SERP_*` via `shared_namespaces`) — don't rename them.
 
 ## Library API
 

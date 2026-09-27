@@ -3,8 +3,9 @@
 
 Every command function's docstring is what Typer renders as `--help` —
 the documentation agents and humans read (see architecture.md, "AI-first
-output"). A command is a function in `src/*/commands/*.py` decorated with
-`output.guard`; "logic" is its signature plus its body minus the
+output"). A command is a function in `src/*/commands/*.py` (or the globs in
+`[tool.cli-generator] commands` in pyproject.toml) decorated with
+`output.guard` or registered with `@<app>.command(...)`; "logic" is its signature plus its body minus the
 docstring. One check, three callers:
 
     check_command_docstrings.py                      git pre-commit (.githooks/): staged vs HEAD, exit 1
@@ -13,21 +14,46 @@ docstring. One check, three callers:
 
 Exit 2 is how a Claude Code hook hands its stderr back to the agent. The
 Stop hook lets the turn end on its second attempt (`stop_hook_active`), so
-a change that truly doesn't alter behaviour can't loop forever; the git
-hook's escape for the same case is `SKIP_DOCSTRING_CHECK=1 git commit ...`.
+a change that truly doesn't alter behaviour can't loop forever. An agent's
+behaviour-neutral edit (lint/type fix) keeps the body AST-identical with
+`# noqa` / `# ty: ignore[...]` comments; the git hook's escape
+`SKIP_DOCSTRING_CHECK=1 git commit ...` is for humans only (standard §7).
 """
 
 from __future__ import annotations
 
 import ast
 import fnmatch
+import functools
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-COMMAND_FILES = "src/*/commands/*.py"
+DEFAULT_COMMAND_FILES = ("src/*/commands/*.py",)
+
+
+@functools.cache
+def command_globs() -> tuple[str, ...]:
+    """Where commands live: `[tool.cli-generator] commands` in pyproject.toml (a glob or a list), else the default.
+
+    Relative to the repo root (main() chdirs there first).
+    """
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # the hook's python3 is older than 3.11
+        return DEFAULT_COMMAND_FILES
+    try:
+        config = tomllib.loads(Path("pyproject.toml").read_text()).get("tool", {}).get("cli-generator", {})
+    except (OSError, tomllib.TOMLDecodeError):
+        return DEFAULT_COMMAND_FILES
+    value = config.get("commands", DEFAULT_COMMAND_FILES)
+    return (value,) if isinstance(value, str) else tuple(value)
+
+
+def is_command_file(path: str) -> bool:
+    return any(fnmatch.fnmatch(path, pattern) for pattern in command_globs())
 
 
 def _git(*args: str) -> str | None:
@@ -35,16 +61,41 @@ def _git(*args: str) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
+def _is_command_decorator(decorator: ast.expr) -> bool:
+    """`@output.guard`, or a Typer registration: `@app.command`, `@app.command("name")`, `@group.command(...)`."""
+    target = decorator.func if isinstance(decorator, ast.Call) else decorator
+    return ast.unparse(target).split(".")[-1] in ("guard", "command")
+
+
+def _doc_assignments(tree: ast.Module) -> dict[str, str]:
+    """`name.__doc__ = <expr>` at module level (e.g. an f-string help text) -> the expression's source."""
+    assigned: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            if isinstance(target, ast.Attribute) and target.attr == "__doc__" and isinstance(target.value, ast.Name):
+                assigned[target.value.id] = ast.unparse(node.value)
+    return assigned
+
+
 def _commands(source: str) -> dict[str, tuple[str | None, str]]:
-    """Map command name -> (docstring, normalized signature + body excluding the docstring)."""
+    """Map command name -> (docstring, normalized signature + body excluding the docstring).
+
+    The docstring is the literal one, or — when the module later sets
+    `command.__doc__ = f"..."` — that expression's source, since that's what
+    `--help` renders.
+    """
+    tree = ast.parse(source)
+    assigned = _doc_assignments(tree)
     commands: dict[str, tuple[str | None, str]] = {}
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
-        if not any(ast.unparse(dec).split(".")[-1] == "guard" for dec in node.decorator_list):
+        if not any(_is_command_decorator(dec) for dec in node.decorator_list):
             continue
-        docstring = ast.get_docstring(node)
-        body = node.body[1:] if docstring is not None else node.body
+        literal = ast.get_docstring(node)
+        docstring = assigned.get(node.name, literal)
+        body = node.body[1:] if literal is not None else node.body
         commands[node.name] = (docstring, "\n".join(ast.dump(part) for part in (node.args, *body)))
     return commands
 
@@ -88,7 +139,7 @@ def _report(stale: list[str], footer: str) -> None:
 def _changed_command_files() -> list[str]:
     tracked = (_git("diff", "--name-only", "HEAD") or "").splitlines()
     untracked = (_git("ls-files", "--others", "--exclude-standard") or "").splitlines()
-    return [p for p in tracked + untracked if fnmatch.fnmatch(p, COMMAND_FILES)]
+    return [p for p in tracked + untracked if is_command_file(p)]
 
 
 def main(argv: list[str]) -> int:
@@ -104,7 +155,7 @@ def main(argv: list[str]) -> int:
             path = Path(file_path).resolve().relative_to(Path.cwd()).as_posix()
         except ValueError:
             return 0
-        if not fnmatch.fnmatch(path, COMMAND_FILES):
+        if not is_command_file(path):
             return 0
         stale = stale_commands([path], staged=False)
         if stale:
@@ -117,16 +168,24 @@ def main(argv: list[str]) -> int:
             return 0  # already blocked once this turn — don't loop
         stale = stale_commands(_changed_command_files(), staged=False)
         if stale:
-            _report(stale, "Update the docstrings before finishing (or say why the behaviour is unchanged).")
+            _report(
+                stale,
+                "Update the docstrings before finishing. For a lint/type-only edit, keep the body AST-identical "
+                "(`# noqa` / `# ty: ignore[...]` comments) instead.",
+            )
             return 2
         return 0
 
     if os.environ.get("SKIP_DOCSTRING_CHECK"):
         return 0
     staged = [p for p in (_git("diff", "--cached", "--name-only", "--diff-filter=ACM") or "").splitlines()]
-    stale = stale_commands([p for p in staged if fnmatch.fnmatch(p, COMMAND_FILES)], staged=True)
+    stale = stale_commands([p for p in staged if is_command_file(p)], staged=True)
     if stale:
-        _report(stale, "Commit blocked. If the behaviour truly didn't change: SKIP_DOCSTRING_CHECK=1 git commit ...")
+        _report(
+            stale,
+            "Commit blocked. A behaviour-neutral edit (lint/type fix) must keep the body AST-identical — use "
+            "`# noqa` / `# ty: ignore[...]` comments. SKIP_DOCSTRING_CHECK=1 is for humans only, never agents.",
+        )
         return 1
     return 0
 

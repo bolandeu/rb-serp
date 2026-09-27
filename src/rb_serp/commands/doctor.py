@@ -9,7 +9,7 @@ from ..core import services
 from ..core.cache import ResponseCache
 from ..core.errors import CliTooOld, InvalidArguments
 from ..core.models import DEFAULT_PROVIDERS, ProjectConfig
-from ..core.version import CLI_NAME, DEV_VERSION, installed_version
+from ..core.version import DEV_VERSION, cli_name, installed_version
 from ..credentials import manager as credentials
 from ..providers import provider_class
 
@@ -33,7 +33,7 @@ def _auth_checks(providers: list[str]) -> list[dict]:
             {
                 "name": f"credential:{provider}",
                 "ok": available,
-                "detail": None if available else f"run '{CLI_NAME} auth login --provider {provider}'",
+                "detail": None if available else f"run '{cli_name()} auth login --provider {provider}'",
             }
         )
     return checks

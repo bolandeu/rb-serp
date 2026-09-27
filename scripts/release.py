@@ -8,19 +8,31 @@ This local gate is the authoritative check (tools/docs/standard-release.md
 §3): agents run `--check` before committing, CI (if any) runs `--check`,
 and nothing is released unless it passes on the machine cutting the release.
 Gate steps, in order — the first failure stops everything and prints that
-step's name and output:
+step's name and output, then `release: code failed` (exit 1) or, when only
+the vulnerability audit failed, `release: audit failed` (exit 3):
 
     uv lock --check · ruff check · ruff format --check · ty check · pytest ·
-    changelog fragment (at least one in changelog.d/ when anything but
-    uv.lock / .github/ changed since the last tag) · build + install the wheel
-    into a throwaway venv, `<cli> --version` must print the version being
-    built, `<cli> --help` must work · osv-scanner over uv.lock (skipped with a
+    changelog fragment (at least one in changelog.d/ when anything user-visible
+    changed since the last tag — not uv.lock, .github/, scripts/, tests/,
+    .githooks/, .claude/, AGENTS.md, CLAUDE.md) · build the wheel and install
+    it into a throwaway venv with exactly the uv.lock dependency set (`uv export`,
+    then the wheel with --no-deps, then `uv pip check` — never resolving from
+    an index, so git-sourced deps can't be swapped for a same-named PyPI
+    package), `<cli> --version` must print the version being
+    built, `<cli> --help` must work (a library without a console script:
+    every top-level package imports and importlib.metadata reports that
+    version) · osv-scanner over uv.lock (skipped with a
     notice when osv-scanner isn't installed)
 
 The version lives only in git tags (`vX.Y.Z`, read at build time by
 uv-dynamic-versioning); a release bumps the last `v*` tag by `part`. Releasing
 refuses off `main`, on a dirty tree, when `main` is behind its upstream, or
 with no fragments. It never pushes: it prints the push command for you.
+
+Settings in pyproject.toml `[tool.cli-generator]` (so the script itself stays
+verbatim): `gate_extras = ["x"]` runs ruff/ty/pytest with those extras
+installed; `release_commit = "chore(release): v{version}"` sets the release
+commit message (default "Release v{version}").
 
 Canonical copy: cli-generator `template/scripts/release.py`. Other repos
 copy it verbatim instead of editing it.
@@ -41,7 +53,27 @@ from pathlib import Path
 from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parent.parent
-FRAGMENTS = ROOT / "changelog.d"
+
+
+def _tool(name: str) -> dict:
+    return tomllib.loads((ROOT / "pyproject.toml").read_text()).get("tool", {}).get(name, {})
+
+
+def _towncrier() -> dict:
+    return _tool("towncrier")
+
+
+def gate_extras() -> list[str]:
+    """`[tool.cli-generator] gate_extras`: optional-dependency extras the gate installs, so their tests run."""
+    return list(_tool("cli-generator").get("gate_extras", []))
+
+
+def release_commit_message(version: str) -> str:
+    """`[tool.cli-generator] release_commit` (e.g. "chore(release): v{version}" for Conventional Commits)."""
+    return _tool("cli-generator").get("release_commit", "Release v{version}").format(version=version)
+
+
+FRAGMENTS = ROOT / _towncrier().get("directory", "changelog.d")
 PARTS = ("patch", "minor", "major")
 COMMANDS = (
     ("uv lock --check", ("uv", "lock", "--check")),
@@ -50,7 +82,20 @@ COMMANDS = (
     ("ty check", ("uv", "run", "ty", "check")),
     ("pytest", ("uv", "run", "pytest")),
 )
+AUDIT_STEP = "vulnerability audit"
+EXIT_CODE_FAILED = 1  # any code/packaging step: lock, lint, types, tests, fragment, wheel
+EXIT_AUDIT_FAILED = 3  # only the osv-scanner audit: the code is fine, a dependency has a known vulnerability
 TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+
+# Changes that never need a changelog fragment (standard §3): they don't
+# change what users of the package get. Keep this list identical in
+# scripts/release.py and scripts/check_changelog_fragment.py (a test checks).
+NO_FRAGMENT_NEEDED = ("uv.lock", ".github/", "scripts/", "tests/", ".githooks/", ".claude/", "AGENTS.md", "CLAUDE.md")
+
+
+def needs_fragment(path: str) -> bool:
+    """Whether a change to `path` (repo-relative, POSIX) is user-visible enough to need a fragment."""
+    return not any(path == entry or (entry.endswith("/") and path.startswith(entry)) for entry in NO_FRAGMENT_NEEDED)
 
 
 class StepFailed(Exception):
@@ -84,6 +129,11 @@ def tags() -> list[tuple[int, int, int]]:
     return sorted((int(m[1]), int(m[2]), int(m[3])) for t in listed if (m := TAG_RE.match(t)))
 
 
+def changelog_file() -> str:
+    """Where towncrier writes: `[tool.towncrier] filename` (default CHANGELOG.md)."""
+    return _towncrier().get("filename", "CHANGELOG.md")
+
+
 def fragments() -> list[Path]:
     return [p for p in FRAGMENTS.glob("*") if p.is_file() and not p.name.startswith(".")]
 
@@ -92,6 +142,8 @@ def fragments() -> list[Path]:
 
 
 def run_command(argv: tuple[str, ...]) -> str:
+    if argv[:2] == ("uv", "run"):  # run lint/types/tests with the configured extras installed
+        argv = ("uv", "run", *(arg for extra in gate_extras() for arg in ("--extra", extra)), *argv[2:])
     step_output(*argv)
     return ""
 
@@ -114,9 +166,8 @@ def check_fragment() -> str:
         changed = _changed_since(last)
         if not changed:
             return f"nothing changed since {last}"
-        # Dependabot's lock/CI bumps aren't user-visible changes.
-        if all(path == "uv.lock" or path.startswith(".github/") for path in changed):
-            return f"only uv.lock / .github/ changed since {last}"
+        if not any(needs_fragment(path) for path in changed):
+            return f"only tooling changed since {last} ({', '.join(NO_FRAGMENT_NEEDED)})"
         since = f"since {last}"
     else:
         since = "and there is no release tag yet"
@@ -146,6 +197,43 @@ def _wheel_version(wheel: Path) -> str:
     return next(line.split(":", 1)[1].strip() for line in metadata.splitlines() if line.startswith("Version:"))
 
 
+def _check_library(python: Path, wheel: Path, dist: str, built: str) -> str:
+    """No console script (a library): import every top-level package, compare importlib.metadata's version."""
+    with zipfile.ZipFile(wheel) as archive:
+        tops = sorted(
+            {
+                name.split("/")[0].removesuffix(".py")
+                for name in archive.namelist()
+                if not name.split("/")[0].endswith((".dist-info", ".data")) and (name.endswith(".py") or "/" in name)
+            }
+        )
+    code = (
+        "import importlib, importlib.metadata as m\n"
+        f"for name in {tops!r}: importlib.import_module(name)\n"
+        f"print(m.version({dist!r}))"
+    )
+    reported = step_output(str(python), "-c", code).splitlines()[-1].strip()
+    if reported != built:
+        raise StepFailed(f"importlib.metadata.version({dist!r}) is {reported!r}, but the wheel is version {built}")
+    return f"{wheel.name}; imports {', '.join(tops)}; importlib.metadata version = {reported}"
+
+
+def _check_vcs_sources(python: Path, requirements: Path) -> None:
+    """Every `name @ git+...` in the locked set must be installed from git, not from an index."""
+    names = [line.split(" @ ", 1)[0].strip() for line in requirements.read_text().splitlines() if " @ git+" in line]
+    if not names:
+        return
+    code = (
+        "import importlib.metadata as m, json\n"
+        f"for name in {names!r}:\n"
+        "    raw = m.distribution(name).read_text('direct_url.json')\n"
+        "    print(name, 'git' if raw and 'vcs_info' in json.loads(raw) else 'INDEX')"
+    )
+    wrong = [line.split()[0] for line in step_output(str(python), "-c", code).splitlines() if line.endswith("INDEX")]
+    if wrong:
+        raise StepFailed(f"installed from a package index instead of their git source: {', '.join(wrong)}")
+
+
 def check_installed_wheel(version: str | None) -> str:
     """Build the wheel (as `version` if given), install it into a throwaway venv, run the CLI."""
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
@@ -163,9 +251,23 @@ def check_installed_wheel(version: str | None) -> str:
             raise StepFailed(f"built version {built}: the build saw no v* tag (uv-dynamic-versioning fell back)")
         step_output("uv", "venv", "--quiet", str(venv))
         python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-        step_output("uv", "pip", "install", "--quiet", "--python", str(python), str(wheel))
+        # Never `uv pip install <wheel>` alone: a wheel's metadata has no
+        # [tool.uv.sources], so our git-only deps (yandex-oauth @ tag) would be
+        # resolved from PyPI — where an unrelated package of the same name
+        # lives (dependency confusion). Install exactly the locked set (git
+        # sources included), then the wheel without resolving anything, then
+        # check the wheel's requirements are met by what's installed.
+        requirements = Path(tmp) / "requirements.txt"
+        step_output(
+            "uv", "export", "--frozen", "--no-dev", "--no-emit-project", "--no-hashes", "--quiet",
+            "--output-file", str(requirements),
+        )  # fmt: skip
+        step_output("uv", "pip", "install", "--quiet", "--python", str(python), "-r", str(requirements))
+        step_output("uv", "pip", "install", "--quiet", "--no-deps", "--python", str(python), str(wheel))
+        step_output("uv", "pip", "check", "--python", str(python))
+        _check_vcs_sources(python, requirements)
         if script is None:
-            return f"{wheel.name} installs (no console script to run)"
+            return _check_library(python, wheel, project["name"], built)
         exe = python.parent / (f"{script}.exe" if os.name == "nt" else script)
         printed = step_output(str(exe), "--version").splitlines()
         reported = printed[-1].strip() if printed else ""
@@ -180,7 +282,7 @@ def run_gate(version: str | None) -> None:
         *((name, lambda argv=argv: run_command(argv)) for name, argv in COMMANDS),
         ("changelog fragment", check_fragment),
         ("build + install wheel", lambda: check_installed_wheel(version)),
-        ("vulnerability audit", check_vulnerabilities),
+        (AUDIT_STEP, check_vulnerabilities),
     ]
     for name, step in steps:
         print(f"release: {name} ...", end=" ", flush=True)
@@ -189,7 +291,11 @@ def run_gate(version: str | None) -> None:
         except StepFailed as exc:
             print("FAILED", flush=True)
             print(f"\nrelease: gate step '{name}' failed:\n{exc.output}", file=sys.stderr)
-            raise SystemExit(1) from None
+            # Last line + exit code tell tools-watch whether the code is broken or
+            # only a dependency needs a security bump.
+            audit = name == AUDIT_STEP
+            print(f"release: {'audit' if audit else 'code'} failed", file=sys.stderr)
+            raise SystemExit(EXIT_AUDIT_FAILED if audit else EXIT_CODE_FAILED) from None
         print(f"ok ({detail})" if detail else "ok", flush=True)
 
 
@@ -241,9 +347,11 @@ def main() -> None:
         fail(f"tag {tag} already exists")
     run_gate(version)
 
-    run("uv", "run", "towncrier", "build", "--version", version, "--yes")  # writes CHANGELOG.md, `git rm`s fragments
-    run("git", "add", "--all", "CHANGELOG.md", *(["changelog.d"] if FRAGMENTS.exists() else []))
-    run("git", "commit", "-m", f"Release {tag}")
+    run(
+        "uv", "run", "towncrier", "build", "--version", version, "--yes"
+    )  # writes changelog_file(), `git rm`s fragments
+    run("git", "add", "--all", changelog_file(), *([str(FRAGMENTS)] if FRAGMENTS.exists() else []))
+    run("git", "commit", "-m", release_commit_message(version))
     run("git", "tag", "-a", tag, "-m", tag)
     print(f"Released {tag} locally. Push it (needs your confirmation): git push --follow-tags")
     print(f'Then pin it anywhere with: uv tool install "git+<repo-url>@{tag}"')

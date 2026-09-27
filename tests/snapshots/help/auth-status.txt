@@ -10,7 +10,8 @@
  порядке; 3 — обязательный не в порядке или любой ключ неверен; 2 — неизвестный
  провайдер. Форма --json — общий контракт инструментов: `tool`, `version`,
  `checked_at`, `credentials[]` с `provider`, `required`, `fields`, `source`,
- `source_ref`, `status`, `expires_at`, `quota`, `message`.
+ `source_ref`, `status`, `expires_at`, `quota`, `message`. `source_ref` называет
+ и старые имена переменных (XMLRIVER_USER, XMLRIVER_TOKEN), если они читаются.
 
  Example: serp auth status --check --json
 

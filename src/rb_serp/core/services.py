@@ -15,12 +15,10 @@ from pydantic import ValidationError
 from .client import SerpClient, organic_items, organic_results
 from .errors import CliTooOld, InvalidArguments, ProjectNotInitialized
 from .models import DEFAULT_PROVIDERS, PageFetch, ProjectConfig, SearchParams, SerpResult
-from .version import CLI_NAME, installed_version
+from .version import cli_name, installed_version
 
-# Derived at import time from this package's own name, so this module never
-# needs template substitution: it just works under whatever package_name
-# the project was generated with.
-PROJECT_DIR_NAME = f".{CLI_NAME}"
+# serp: папка проекта — по имени команды (.serp), не пакета (.rb_serp), как было до шаблона v1.2.1.
+PROJECT_DIR_NAME = f".{cli_name()}"
 CONFIG_FILE_NAME = "config.toml"
 
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -8,8 +10,10 @@ import typer
 from typer.testing import CliRunner
 
 from rb_serp import output
+from rb_serp._distribution import DIST_NAME
 from rb_serp.cli import app
 from rb_serp.core import services
+from rb_serp.core.errors import InvalidArguments
 
 runner = CliRunner()
 
@@ -27,6 +31,37 @@ def invoke_json(*args: str, **kwargs) -> tuple[int, dict]:
 
 def init(tmp_path: Path, name: str = "demo") -> None:
     assert invoke("--project", str(tmp_path), "init", "--name", name).exit_code == 0
+
+
+# --- names ----------------------------------------------------------------------
+
+
+def test_distribution_name_is_declared_once() -> None:
+    """Only _distribution.py assigns DIST_NAME; a merge that re-declares it elsewhere would silently win."""
+    src = Path(__file__).resolve().parents[1] / "src" / "rb_serp"
+    declaring = sorted(
+        str(path.relative_to(src))
+        for path in src.rglob("*.py")
+        if re.search(r"^DIST_NAME\s*[:=]", path.read_text(), re.M)
+    )
+    assert declaring == ["_distribution.py"]
+
+
+def test_version_falls_back_to_legacy_distribution_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    from rb_serp.core import version
+
+    installed = version.installed_version()
+    monkeypatch.setattr(version, "DIST_NAME", "no-such-distribution-xyz")
+    monkeypatch.setattr(version, "DIST_NAME_LEGACY", DIST_NAME)  # an install made under the old name
+    assert version.installed_version() == installed
+    monkeypatch.setattr(version, "DIST_NAME_LEGACY", None)
+    assert version.installed_version() is None
+
+
+def test_distribution_name_matches_pyproject() -> None:
+    """_distribution.DIST_NAME is how importlib.metadata finds this package; it must equal [project] name."""
+    pyproject = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text())
+    assert pyproject["project"]["name"] == DIST_NAME
 
 
 # --- help-on-no-args -------------------------------------------------------
@@ -193,6 +228,27 @@ def _app_with(command):
     return test_app
 
 
+def test_report_with_a_problem_keeps_the_payload() -> None:
+    """output.emit_report: data plus ok=false + error, exit code from the problem (auth status uses it)."""
+
+    def report(ctx: typer.Context) -> None:
+        render = lambda d: output.human.echo(f"items: {d['items']}")  # noqa: E731
+        output.emit_report(ctx, {"items": [1]}, render, InvalidArguments("bad"))
+
+    result = runner.invoke(_app_with(report), ["--json", "cmd"])
+    payload = json.loads(result.stdout)
+    assert (result.exit_code, payload["ok"], payload["items"], payload["error"]["code"]) == (
+        2,
+        False,
+        [1],
+        "INVALID_ARGUMENTS",
+    )
+    result = runner.invoke(_app_with(report), ["cmd"])
+    assert result.exit_code == 2
+    assert "items: [1]" in result.stdout
+    assert "bad" in result.stderr
+
+
 def test_unexpected_exception_still_yields_json_envelope() -> None:
     def boom(ctx: typer.Context) -> None:
         raise RuntimeError("kaboom")
@@ -263,5 +319,5 @@ def test_skill_install_writes_to_project_dir(tmp_path: Path, monkeypatch: pytest
     assert code == 0
     installed = tmp_path / ".claude" / "skills" / "serp" / "SKILL.md"
     assert installed.is_file()
-    assert "serp" in installed.read_text()
+    assert "name: serp" in installed.read_text()
     assert payload["path"] == str(installed)

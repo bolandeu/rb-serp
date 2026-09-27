@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import xml.etree.ElementTree as ET
+from typing import ClassVar
 
 import httpx
 
@@ -43,7 +44,7 @@ class XmlRiverProvider(SerpProvider):
     name = "xmlriver"
     summary = "XML River — yandex и google"
     credential_fields = ("user", "token")
-    legacy_env = {"user": "XMLRIVER_USER", "token": "XMLRIVER_TOKEN"}  # noqa: RUF012 — ClassVar в базе
+    legacy_env: ClassVar[dict[str, str]] = {"user": "XMLRIVER_USER", "token": "XMLRIVER_TOKEN"}
     # Тестовый шов для health_check (синхронный запрос, в отличие от fetch_page).
     health_transport: httpx.BaseTransport | None = None
 

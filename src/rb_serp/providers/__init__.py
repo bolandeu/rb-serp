@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from ..core.errors import InvalidArguments
 from .base import Health, Provider, Quota, SerpProvider, all_providers
+from .http import HttpProvider
 from .xmlriver import XmlRiverProvider
 from .xmlstock import XmlStockProvider
 
@@ -36,6 +37,7 @@ def provider_class(name: str) -> type[SerpProvider]:
 __all__ = [
     "PROVIDERS",
     "Health",
+    "HttpProvider",
     "Provider",
     "Quota",
     "SerpProvider",

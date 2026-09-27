@@ -25,7 +25,7 @@ from pathlib import Path
 import platformdirs
 from pydantic import BaseModel
 
-from .version import CLI_NAME
+from .version import cli_name
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS responses (
@@ -50,12 +50,9 @@ def default_path() -> Path:
 
     Не папка кэша: это журнал всей истории, а Caches чистят ОС и программы-уборщики.
     """
-    explicit = os.environ.get(f"{CLI_NAME.upper()}_DB_PATH")
-    return (
-        Path(explicit)
-        if explicit
-        else Path(platformdirs.user_data_dir(CLI_NAME, appauthor=False)) / f"{CLI_NAME}.sqlite"
-    )
+    name = cli_name()
+    explicit = os.environ.get(f"{name.upper()}_DB_PATH")
+    return Path(explicit) if explicit else Path(platformdirs.user_data_dir(name, appauthor=False)) / f"{name}.sqlite"
 
 
 def human_size(num_bytes: int) -> str:

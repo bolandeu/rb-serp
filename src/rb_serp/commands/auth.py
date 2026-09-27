@@ -1,72 +1,23 @@
 from __future__ import annotations
 
-import typer
-from rich.markup import escape
+import importlib
+from datetime import UTC, datetime
 
-from .. import output, providers
-from ..core.errors import CredentialsUnhealthy, InvalidArguments
-from ..core.version import CLI_NAME, DEV_VERSION, installed_version
-from ..credentials import health
-from ..credentials import manager as credentials
-from ..providers import provider_class, providers_help
+import typer
+
+from .. import output
+from ..core.errors import InvalidArguments
+from ..core.version import DEV_VERSION, cli_name, installed_version, module_exists
+from ..providers import providers_help
+
+# `auth status` exists in every CLI (tools/docs/standard-release.md §8); a CLI
+# generated without credentials (no credentials/ package, no commands/login.py)
+# reports an empty `credentials` list and exits 0. Detected at runtime so this
+# file needs no template logic — same approach as doctor.py.
+_PACKAGE_NAME = __name__.split(".")[0]
+_HAS_CREDENTIALS = module_exists(f"{_PACKAGE_NAME}.credentials.manager")
 
 app = output.group("Доступы к провайдерам (ключи в связке ключей ОС).")
-
-ProviderOption = typer.Option("xmlriver", "--provider", help=f"Провайдер. Доступны: {providers_help()}.")
-
-
-@app.command("login")
-@output.guard
-def login(
-    ctx: typer.Context,
-    provider: str = ProviderOption,
-    non_interactive: bool = output.NonInteractiveOption,
-    json_output: bool = output.JsonOption,
-    quiet: bool = output.QuietOption,
-) -> None:
-    """Сохранить доступы провайдера в связку ключей ОС.
-
-    Каждое поле берётся из переменной SERP_<PROVIDER>_<FIELD> (например
-    SERP_XMLSTOCK_USER, SERP_XMLSTOCK_TOKEN), если она задана, иначе
-    спрашивается. С --non-interactive недостающее поле — ошибка, а не вопрос.
-
-    Example: {cli} auth login --provider xmlriver
-    """
-    fields = provider_class(provider).credential_fields
-    values = credentials.read_fields_from_env(provider, list(fields))
-    missing = [field for field in fields if not values.get(field)]
-    if missing and (ctx.obj.get("non_interactive") or non_interactive):
-        env_names = ", ".join(f"SERP_{provider.upper()}_{field.upper()}" for field in missing)
-        raise InvalidArguments(f"Missing {env_names} in the environment and --non-interactive was set.")
-    for field in missing:
-        values[field] = typer.prompt(f"{provider} {field}", hide_input=field != "user")
-    credentials.store_credential(provider, values)
-    output.emit_success(
-        ctx,
-        {"provider": provider},
-        render_human=lambda d: output.human.echo(f"Stored credential for '{d['provider']}'."),
-    )
-
-
-@app.command("logout")
-@output.guard
-def logout(
-    ctx: typer.Context,
-    provider: str = ProviderOption,
-    json_output: bool = output.JsonOption,
-    quiet: bool = output.QuietOption,
-) -> None:
-    """Удалить доступы провайдера из связки ключей ОС.
-
-    Example: {cli} auth logout --provider xmlstock
-    """
-    provider_class(provider)
-    credentials.delete_credential(provider)
-    output.emit_success(
-        ctx,
-        {"provider": provider},
-        render_human=lambda d: output.human.echo(f"Removed credential for '{d['provider']}'."),
-    )
 
 
 @app.command("status")
@@ -91,27 +42,25 @@ def auth_status(
     порядке; 3 — обязательный не в порядке или любой ключ неверен; 2 — неизвестный
     провайдер. Форма --json — общий контракт инструментов: `tool`, `version`,
     `checked_at`, `credentials[]` с `provider`, `required`, `fields`, `source`,
-    `source_ref`, `status`, `expires_at`, `quota`, `message`.
+    `source_ref`, `status`, `expires_at`, `quota`, `message`. `source_ref` называет
+    и старые имена переменных (XMLRIVER_USER, XMLRIVER_TOKEN), если они читаются.
 
     Example: {cli} auth status --check --json
     """
-    known = providers.all_providers()
-    selected = health.select(known, provider)
-    if provider is not None and not selected:
-        names = ", ".join(f"{cls.name}:<target>" if cls.per_target else cls.name for cls in known) or "none"
-        raise InvalidArguments(f"Unknown provider '{provider}' (known: {names}).")
-    payload = health.report(CLI_NAME, installed_version() or DEV_VERSION, selected, check=check, only=provider)
-    problems = {entry["provider"]: entry["status"] for entry in payload["credentials"] if health.is_problem(entry)}
-    output.emit_report(ctx, payload, _render_status, CredentialsUnhealthy(problems) if problems else None)
+    tool, version = cli_name(), installed_version() or DEV_VERSION
+    if not _HAS_CREDENTIALS:
+        if provider is not None:
+            raise InvalidArguments(f"Unknown provider '{provider}' ({tool} stores no credentials).")
+        checked_at = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        payload = {"tool": tool, "version": version, "checked_at": checked_at, "credentials": []}
+        output.emit_report(ctx, payload, lambda _: output.human.echo(f"{tool} stores no credentials."), None)
+        return
+    health = importlib.import_module(f"{_PACKAGE_NAME}.credentials.health")
+    payload, problem = health.status(tool, version, check=check, only=provider)
+    output.emit_report(ctx, payload, health.render, problem)
 
 
-def _render_status(payload: dict) -> None:
-    if not payload["credentials"]:
-        output.human.echo("No providers with credentials.")
-    for entry in payload["credentials"]:
-        mark = {"ok": "[green]✓[/green]", "unchecked": "[dim]·[/dim]"}.get(entry["status"], "[red]✗[/red]")
-        optional = "" if entry["required"] else " (optional)"
-        detail = f" — {entry['message']}" if entry["message"] else ""
-        expires = f", expires {entry['expires_at']}" if entry["expires_at"] else ""
-        line = f"{entry['provider']}{optional}: {entry['status']} ({entry['source']}: {entry['source_ref']}){expires}{detail}"
-        output.human.echo(f"{mark} {escape(line)}")
+if module_exists(f"{_PACKAGE_NAME}.commands.login"):
+    _login = importlib.import_module(f"{_PACKAGE_NAME}.commands.login")
+    app.command("login")(_login.login)
+    app.command("logout")(_login.logout)

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-import time
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import ClassVar
 
 import httpx
 import pytest
@@ -16,8 +17,8 @@ from rb_serp.providers import Health, Provider, Quota, XmlRiverProvider
 
 from .test_cli import invoke, invoke_json
 
-CLI = "serp"
-PREFIX = CLI.upper()
+NS = "serp"  # keychain service and env prefix use the command name, not the package
+PREFIX = re.sub(r"[^A-Z0-9]", "_", NS.upper())
 GOOD, BAD = "good-secret-123", "bad-secret-456"
 
 
@@ -44,32 +45,20 @@ def fake_keyring(monkeypatch: pytest.MonkeyPatch):
 # --- test providers: a required API key one, an optional two-field one ----------
 
 
-def _api(request: httpx.Request) -> httpx.Response:
-    """Fake API: accepts GOOD, rejects anything else, reports a quota."""
-    if request.url.path == "/down":
-        raise httpx.ConnectError("refused")
-    if request.headers.get("Authorization") != f"Bearer {GOOD}":
-        return httpx.Response(401, text=f"bad key {request.headers.get('Authorization')}")
-    return httpx.Response(200, json={"remaining": 42})
-
-
 class Demo(Provider):
-    """A provider the way serp's are built: its own httpx call, vendor failures raised as CLI errors."""
+    """A provider with no transport at all: health_check() decides from the credential."""
 
     name = "demo"
-    path = "/me"
+    path = "/me"  # "/down" simulates the service being unreachable
     expires_at: datetime | None = None
 
     def health_check(self) -> Health:
-        headers = {"Authorization": f"Bearer {credentials.get_secret(self.credential_name)}"}
-        try:
-            with httpx.Client(transport=httpx.MockTransport(_api), base_url="https://api.example.test") as client:
-                response = client.get(self.path, headers=headers)
-        except httpx.TransportError as exc:
-            raise ProviderError(self.name, type(exc).__name__) from None
-        if response.status_code == 401:
+        credential = self.credential()
+        if self.path == "/down":
+            raise ProviderError(self.name, "ConnectError while calling GET /me")
+        if (credential or {}).get("api_key") != GOOD:
             raise AuthRequired(self.name)
-        return Health(expires_at=self.expires_at, quota=Quota(remaining=response.json()["remaining"]))
+        return Health(expires_at=self.expires_at, quota=Quota(remaining=42))
 
 
 class Extra(Demo):
@@ -117,7 +106,7 @@ STATUSES = {"ok", "missing", "invalid", "expired", "quota_exhausted", "unreachab
 def test_report_shape_is_the_cross_tool_contract(demo_providers, args: tuple[str, ...]) -> None:
     _, payload, _ = status(*args, demo=GOOD)
     assert [k for k in payload if k != "error"] == TOP_KEYS
-    assert payload["tool"] == CLI
+    assert payload["tool"] == "serp"
     assert isinstance(payload["version"], str)
     assert datetime.fromisoformat(payload["checked_at"].replace("Z", "+00:00")).tzinfo is not None
     assert payload["checked_at"].endswith("Z")
@@ -177,13 +166,17 @@ def test_unreachable_counts_only_for_required(demo_providers, monkeypatch: pytes
     assert code == 0
 
 
-def test_check_times_out(demo_providers, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(health, "CHECK_TIMEOUT", 0.05)
-    monkeypatch.setattr(Demo, "health_check", lambda self: time.sleep(0.5) or Health())
+def test_check_timeout_is_unreachable(demo_providers, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The 10 s limit is the provider's client timeout (HttpProvider.probe);
+    # hitting it surfaces as ProviderError, which auth status reports as unreachable.
+    def timed_out(self) -> Health:
+        raise ProviderError(self.name, f"ReadTimeout after {health.CHECK_TIMEOUT:g} s while calling GET /me")
+
+    monkeypatch.setattr(Demo, "health_check", timed_out)
     code, payload, _ = status("--check", demo=GOOD)
     demo = by_provider(payload)["demo"]
     assert (code, demo["status"]) == (3, "unreachable")
-    assert "no answer" in demo["message"]
+    assert "ReadTimeout" in demo["message"]
 
 
 def test_past_expiry_is_expired(demo_providers, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -209,12 +202,12 @@ def test_keychain_and_mixed_sources(demo_providers) -> None:
     _, payload, _ = status("--check", extra=None)
     entries = by_provider(payload)
     assert (entries["demo"]["source"], entries["demo"]["status"]) == ("keychain", "ok")
-    assert entries["demo"]["source_ref"] == f"keychain service {CLI}:demo"
+    assert entries["demo"]["source_ref"] == f"keychain service {NS}:demo"
 
     result = invoke("auth", "status", "--json", env={f"{PREFIX}_EXTRA_API_KEY": GOOD})
     extra = by_provider(json.loads(result.stdout))["extra"]
     assert extra["source"] == "env"
-    assert extra["source_ref"] == f"{PREFIX}_EXTRA_API_KEY; rest from keychain service {CLI}:extra"
+    assert extra["source_ref"] == f"{PREFIX}_EXTRA_API_KEY; rest from keychain service {NS}:extra"
 
 
 def test_provider_filter_and_unknown_provider(demo_providers) -> None:
@@ -237,6 +230,65 @@ def test_no_providers_is_healthy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(providers, "all_providers", lambda: [])
     code, payload = invoke_json("auth", "status")
     assert (code, payload["credentials"]) == (0, [])
+
+
+# --- legacy env names -------------------------------------------------------------
+
+
+class Legacy(Demo):
+    name = "legacy"
+    legacy_env: ClassVar[dict[str, str]] = {"api_key": "OLD_LEGACY_TOKEN"}
+
+
+def test_legacy_env_name_is_a_source(monkeypatch: pytest.MonkeyPatch, fake_keyring) -> None:
+    monkeypatch.setattr(providers, "all_providers", lambda: [Legacy])
+    result = invoke("auth", "status", "--check", "--json", env={"OLD_LEGACY_TOKEN": GOOD})
+    entry = by_provider(json.loads(result.stdout))["legacy"]
+    assert (result.exit_code, entry["source"], entry["status"]) == (0, "env", "ok")
+    assert entry["source_ref"] == "OLD_LEGACY_TOKEN"
+
+    # the standard name wins over the legacy one
+    both = {"OLD_LEGACY_TOKEN": BAD, f"{PREFIX}_LEGACY_API_KEY": GOOD}
+    entry = by_provider(json.loads(invoke("auth", "status", "--check", "--json", env=both).stdout))["legacy"]
+    assert (entry["source_ref"], entry["status"]) == (f"{PREFIX}_LEGACY_API_KEY", "ok")
+
+    missing = by_provider(json.loads(invoke("auth", "status", "--json").stdout))["legacy"]
+    assert "OLD_LEGACY_TOKEN" in missing["source_ref"]
+
+
+def test_keychain_beats_legacy_env_unless_legacy_first(monkeypatch: pytest.MonkeyPatch, fake_keyring) -> None:
+    monkeypatch.setattr(providers, "all_providers", lambda: [Legacy])
+    credentials.store_credential("legacy", {"api_key": GOOD})
+    env = {"OLD_LEGACY_TOKEN": BAD}
+    entry = by_provider(json.loads(invoke("auth", "status", "--check", "--json", env=env).stdout))["legacy"]
+    assert (entry["source"], entry["status"]) == ("keychain", "ok")  # default: legacy env is the last resort
+
+    monkeypatch.setattr(Legacy, "legacy_env_first", True)
+    entry = by_provider(json.loads(invoke("auth", "status", "--check", "--json", env=env).stdout))["legacy"]
+    assert (entry["source"], entry["source_ref"], entry["status"]) == ("env", "OLD_LEGACY_TOKEN", "invalid")
+
+
+class Borrowed(Demo):
+    name = "xmlriver"
+    shared_namespaces = ("serp",)
+
+
+def test_shared_namespace_is_read(monkeypatch: pytest.MonkeyPatch, fake_keyring) -> None:
+    """A provider can read the credential another CLI stored (e.g. wordstat reading serp's key)."""
+    monkeypatch.setattr(providers, "all_providers", lambda: [Borrowed])
+    fake_keyring[("serp:xmlriver", "xmlriver")] = json.dumps({"api_key": GOOD})
+    entry = by_provider(json.loads(invoke("auth", "status", "--check", "--json").stdout))["xmlriver"]
+    assert (entry["source"], entry["status"]) == ("keychain", "ok")
+    assert entry["source_ref"] == "keychain service serp:xmlriver"
+    assert Borrowed().credential() == {"api_key": GOOD}
+
+    env = {"SERP_XMLRIVER_API_KEY": GOOD}
+    entry = by_provider(json.loads(invoke("auth", "status", "--json", env=env).stdout))["xmlriver"]
+    assert (entry["source"], entry["source_ref"]) == ("env", "SERP_XMLRIVER_API_KEY")
+
+    credentials.store_credential("xmlriver", {"api_key": BAD})  # our own namespace comes first
+    entry = by_provider(json.loads(invoke("auth", "status", "--check", "--json").stdout))["xmlriver"]
+    assert (entry["source_ref"], entry["status"]) == (f"keychain service {NS}:xmlriver", "invalid")
 
 
 # --- per-target providers: one entry per stored target --------------------------
@@ -262,7 +314,7 @@ def test_per_target_reports_each_stored_target(deploy_provider) -> None:
     entries = by_provider(payload)
     assert list(entries) == ["deploy:a.example.com", "deploy:b.example.com"]
     assert (entries["deploy:a.example.com"]["status"], entries["deploy:b.example.com"]["status"]) == ("ok", "invalid")
-    assert entries["deploy:a.example.com"]["source_ref"] == f"keychain service {CLI}:deploy:a.example.com"
+    assert entries["deploy:a.example.com"]["source_ref"] == f"keychain service {NS}:deploy:a.example.com"
     assert code == 3
 
     code, payload, _ = status("--check", "--provider", "deploy:a.example.com")

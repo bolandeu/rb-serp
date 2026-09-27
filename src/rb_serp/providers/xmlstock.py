@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import ClassVar
 
 from ..core.errors import AuthRequired, ProviderError
 from ..core.models import PageRequest
@@ -26,7 +27,7 @@ class XmlStockProvider(XmlRiverProvider):
     name = "xmlstock"
     summary = "XMLStock — yandex и google"
     credential_fields = ("user", "token")
-    legacy_env = {}  # noqa: RUF012 — ClassVar в базе
+    legacy_env: ClassVar[dict[str, str]] = {}
     # Запасной провайдер: по умолчанию очередь — только xmlriver, без XMLStock serp работает.
     required = False
 
