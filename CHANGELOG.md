@@ -10,6 +10,13 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.4.1] - 2026-09-27
+
+### Changed
+
+- Шаблон cli-generator v1.2.7: имена доступов (keychain serp:*, env SERP_*) и старые XMLRIVER_* берутся из общей логики шаблона; в auth status в source_ref указаны и старые имена переменных. Поведение и имена ключей прежние.
+
+
 ## [0.4.0] - 2026-09-27
 
 ### Changed
