@@ -5,54 +5,30 @@
 провайдеров разные доп. блоки (у XML River — ответы на похожие вопросы), так
 что ответ одного не подменяет другой. Читать из кэша вызывающий решает сам
 (`serp search --cache`): берётся самая свежая *полная* запись по ключу —
-неполная страница (`complete = 0`) хранится для истории, но не отдаётся.
+неполная страница (`complete = false`) хранится для истории, но не отдаётся.
 
-Почему sqlite3 из стандартной библиотеки, а не готовый кэш: hishel ключует по
-URL — а в нём логин и ключ провайдера; diskcache — это key→value без истории
-и выборки по дате. Нужны история, поиск по дате и размер — это SQL-таблица.
+Хранится в базе инструмента (core/db.py, таблица `serp_responses`): общий
+PostgreSQL из `SERP_DATABASE_URL` или локальная SQLite. Только добавление —
+повторный ответ на тот же запрос не заменяет старый, а ложится рядом со своей
+датой получения (`fetched_at`, UTC).
+
+Почему своя таблица, а не готовый кэш: hishel ключует по URL — а в нём логин и
+ключ провайдера; diskcache — это key→value без истории и выборки по дате.
+Нужны история, поиск по дате и размер — это SQL-таблица.
 """
 
 from __future__ import annotations
 
-import contextlib
-import os
-import sqlite3
 import zlib
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import platformdirs
+import sqlalchemy as sa
 from pydantic import BaseModel
 
-from .version import cli_name
-
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS responses (
-    id INTEGER PRIMARY KEY,
-    fetched_at TEXT NOT NULL,
-    provider TEXT NOT NULL,
-    engine TEXT NOT NULL,
-    region TEXT NOT NULL,
-    query TEXT NOT NULL,
-    query_key TEXT NOT NULL,
-    page INTEGER NOT NULL,
-    complete INTEGER NOT NULL DEFAULT 1,
-    xml BLOB NOT NULL
-);
-CREATE INDEX IF NOT EXISTS responses_lookup ON responses (provider, engine, region, query_key, page, fetched_at);
-CREATE INDEX IF NOT EXISTS responses_date ON responses (fetched_at);
-"""
-
-
-def default_path() -> Path:
-    """`SERP_DB_PATH` или папка данных приложения (~/Library/Application Support/serp на macOS).
-
-    Не папка кэша: это журнал всей истории, а Caches чистят ОС и программы-уборщики.
-    """
-    name = cli_name()
-    explicit = os.environ.get(f"{name.upper()}_DB_PATH")
-    return Path(explicit) if explicit else Path(platformdirs.user_data_dir(name, appauthor=False)) / f"{name}.sqlite"
+from . import db
+from .normalize import norm_phrase
+from .tables import responses
 
 
 def human_size(num_bytes: int) -> str:
@@ -69,16 +45,18 @@ def files_size(path: Path) -> int:
     return sum(p.stat().st_size for p in path.parent.glob(path.name + "*")) if path.parent.is_dir() else 0
 
 
+def _location() -> str:
+    """Где журнал — без открытия базы и без пароля."""
+    url = db.database_url()
+    return sa.make_url(url).render_as_string(hide_password=True) if url else str(db.sqlite_path())
+
+
 def help_line() -> str:
     """Строка для --help: где журнал и сколько весит — без открытия базы."""
-    path = default_path()
-    size = files_size(path)
-    return f"Журнал ответов: {path} — {human_size(size) if size else 'пока пуст'}."
-
-
-def query_key(query: str) -> str:
-    """Регистр и лишние пробелы на выдачу не влияют — и на ключ тоже."""
-    return " ".join(query.lower().split())
+    if db.database_url():
+        return f"Журнал ответов: {_location()}."
+    size = files_size(db.sqlite_path())
+    return f"Журнал ответов: {_location()} — {human_size(size) if size else 'пока пуст'}."
 
 
 class CachedPage(BaseModel):
@@ -110,33 +88,46 @@ class CacheStats(BaseModel):
 
 
 class ResponseCache:
-    def __init__(self, path: Path | None = None) -> None:
-        self.path = path or default_path()
+    """Журнал в базе инструмента; `path` — отдельный файл SQLite вместо неё (тесты, библиотека)."""
 
-    @contextlib.contextmanager
-    def _connect(self) -> Iterator[sqlite3.Connection]:
-        """Соединение на одну операцию: commit при успехе, rollback при ошибке, всегда close."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(self.path, timeout=30)
-        try:
-            conn.execute("PRAGMA journal_mode=WAL")  # несколько serp одновременно — без блокировок
-            conn.executescript(_SCHEMA)
-            _migrate(conn)
-            with conn:
-                yield conn
-        finally:
-            conn.close()
+    def __init__(self, path: Path | None = None) -> None:
+        self._file = path
+        self._engine: sa.Engine | None = None
+        self.path = str(path) if path else _location()
+
+    @property
+    def engine(self) -> sa.Engine:
+        """База открывается один раз, при первом обращении: SQLite мигрируется, PostgreSQL проверяется."""
+        if self._engine is None:
+            if self._file is None:
+                self._engine = db.open_db()
+            else:
+                engine = db.sqlite_engine(self._file)
+                try:
+                    db.upgrade(engine)
+                except Exception:
+                    engine.dispose()
+                    raise
+                self._engine = engine
+            self.path = db.describe(self._engine) if self._file is None else str(self._file)
+        return self._engine
+
+    def close(self) -> None:
+        if self._engine is not None:
+            self._engine.dispose()
+            self._engine = None
 
     def put(
         self, *, provider: str, engine: str, region: str, query: str, page: int, xml: str, complete: bool = True
     ) -> datetime:
         fetched_at = datetime.now(UTC)
-        with self._connect() as conn:
+        with self.engine.begin() as conn:
             conn.execute(
-                "INSERT INTO responses (fetched_at, provider, engine, region, query, query_key, page, complete, xml)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (fetched_at.isoformat(), provider, engine, region, query, query_key(query), page, int(complete),
-                 zlib.compress(xml.encode("utf-8"))),
+                sa.insert(responses).values(
+                    fetched_at=fetched_at, provider=provider, engine=engine, region=region, query=query,
+                    query_key=norm_phrase(query), page=page, complete=complete,
+                    xml=zlib.compress(xml.encode("utf-8")),
+                )
             )  # fmt: skip
         return fetched_at
 
@@ -151,90 +142,93 @@ class ResponseCache:
         max_age: timedelta | None = None,
     ) -> CachedPage | None:
         """Самая свежая полная запись этого провайдера по ключу, или None."""
-        sql = (
-            "SELECT xml, provider, fetched_at FROM responses"
-            " WHERE provider=? AND engine=? AND region=? AND query_key=? AND page=? AND complete=1"
+        c = responses.c
+        sql = sa.select(c.xml, c.provider, c.fetched_at).where(
+            c.provider == provider,
+            c.engine == engine,
+            c.region == region,
+            c.query_key == norm_phrase(query),
+            c.page == page,
+            c.complete.is_(True),
         )
-        args: list = [provider, engine, region, query_key(query), page]
         if max_age is not None:
-            sql += " AND fetched_at >= ?"
-            args.append(_cutoff(max_age))
-        with self._connect() as conn:
-            row = conn.execute(sql + " ORDER BY fetched_at DESC LIMIT 1", args).fetchone()
+            sql = sql.where(c.fetched_at >= _cutoff(max_age))
+        with self.engine.connect() as conn:
+            row = conn.execute(sql.order_by(c.fetched_at.desc()).limit(1)).first()
         if row is None:
             return None
         return CachedPage(
-            xml=zlib.decompress(row[0]).decode("utf-8"), provider=row[1], fetched_at=datetime.fromisoformat(row[2])
+            xml=zlib.decompress(row.xml).decode("utf-8"), provider=row.provider, fetched_at=row.fetched_at
         )
 
     def stats(self) -> CacheStats:
-        with self._connect() as conn:
-            count, incomplete, oldest, newest = conn.execute(
-                "SELECT COUNT(*), COUNT(*) - COALESCE(SUM(complete), 0), MIN(fetched_at), MAX(fetched_at) FROM responses"
-            ).fetchone()
-            by_provider = dict(conn.execute("SELECT provider, COUNT(*) FROM responses GROUP BY provider").fetchall())
-        size = files_size(self.path)
+        c = responses.c
+        with self.engine.connect() as conn:
+            count, complete, oldest, newest = conn.execute(
+                sa.select(
+                    sa.func.count(),
+                    sa.func.count().filter(c.complete.is_(True)),
+                    sa.func.min(c.fetched_at),
+                    sa.func.max(c.fetched_at),
+                )
+            ).one()
+            by_provider = dict(conn.execute(sa.select(c.provider, sa.func.count()).group_by(c.provider)).all())
+            if db.is_postgres(conn):
+                size = conn.execute(sa.select(sa.func.pg_total_relation_size(responses.name))).scalar_one()
+            else:
+                size = files_size(Path(self.engine.url.database or ""))
         return CacheStats(
-            path=str(self.path),
+            path=self.path,
             file_size=size,
             entries=count,
-            incomplete=incomplete,
-            oldest=datetime.fromisoformat(oldest) if oldest else None,
-            newest=datetime.fromisoformat(newest) if newest else None,
+            incomplete=count - complete,
+            oldest=_utc(oldest),
+            newest=_utc(newest),
             by_provider=by_provider,
         )
 
     def entries(self, *, query: str | None = None, limit: int = 50) -> list[CacheEntry]:
         """Последние записи журнала (без XML), свежие первыми; `query` — подстрока запроса."""
-        sql = "SELECT id, fetched_at, provider, engine, region, query, page, complete, LENGTH(xml) FROM responses"
-        args: list = []
+        c = responses.c
+        sql = sa.select(
+            c.id, c.fetched_at, c.provider, c.engine, c.region, c.query, c.page, c.complete,
+            sa.func.length(c.xml).label("size"),
+        )  # fmt: skip
         if query:
-            sql += " WHERE query_key LIKE ?"
-            args.append(f"%{query_key(query)}%")
-        with self._connect() as conn:
-            rows = conn.execute(sql + " ORDER BY fetched_at DESC LIMIT ?", [*args, limit]).fetchall()
-        return [
-            CacheEntry(
-                id=r[0], fetched_at=datetime.fromisoformat(r[1]), provider=r[2], engine=r[3], region=r[4],
-                query=r[5], page=r[6], complete=bool(r[7]), size=r[8],
-            )
-            for r in rows
-        ]  # fmt: skip
+            sql = sql.where(c.query_key.contains(norm_phrase(query), autoescape=True))
+        with self.engine.connect() as conn:
+            rows = conn.execute(sql.order_by(c.fetched_at.desc()).limit(limit)).mappings().all()
+        return [CacheEntry(**row) for row in rows]
 
     def count_older(self, older_than: timedelta | None) -> int:
         """Сколько записей удалит `clear` с тем же аргументом (None — все)."""
-        with self._connect() as conn:
-            if older_than is None:
-                return conn.execute("SELECT COUNT(*) FROM responses").fetchone()[0]
-            return conn.execute(
-                "SELECT COUNT(*) FROM responses WHERE fetched_at < ?", [_cutoff(older_than)]
-            ).fetchone()[0]
+        sql = sa.select(sa.func.count()).select_from(responses)
+        if older_than is not None:
+            sql = sql.where(responses.c.fetched_at < _cutoff(older_than))
+        with self.engine.connect() as conn:
+            return conn.execute(sql).scalar_one()
 
     def clear(self, older_than: timedelta | None) -> int:
-        """Удалить записи старше `older_than` (None — все) и вернуть место на диске."""
-        with self._connect() as conn:
-            if older_than is None:
-                deleted = conn.execute("DELETE FROM responses").rowcount
-            else:
-                deleted = conn.execute("DELETE FROM responses WHERE fetched_at < ?", [_cutoff(older_than)]).rowcount
-        with self._connect() as conn:
-            conn.execute("VACUUM")  # иначе файл не уменьшится
+        """Удалить записи старше `older_than` (None — все); в SQLite — и вернуть место на диске."""
+        sql = sa.delete(responses)
+        if older_than is not None:
+            sql = sql.where(responses.c.fetched_at < _cutoff(older_than))
+        with self.engine.begin() as conn:
+            deleted = conn.execute(sql).rowcount
+        if not db.is_postgres(self.engine):
+            with self.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                conn.execute(sa.text("VACUUM"))  # иначе файл не уменьшится
         return deleted
 
 
-def _migrate(conn: sqlite3.Connection) -> None:
-    """База без колонки `complete` (до 0.3.0): добавить и посчитать по сохранённым ответам."""
-    columns = {row[1] for row in conn.execute("PRAGMA table_info(responses)")}
-    if "complete" in columns:
-        return
-    from .serp_xml import parse_page  # только для миграции
-
-    with conn:
-        conn.execute("ALTER TABLE responses ADD COLUMN complete INTEGER NOT NULL DEFAULT 1")
-        for row_id, blob in conn.execute("SELECT id, xml FROM responses").fetchall():
-            complete = parse_page(zlib.decompress(blob).decode("utf-8")).complete
-            conn.execute("UPDATE responses SET complete=? WHERE id=?", (int(complete), row_id))
+def _cutoff(age: timedelta) -> datetime:
+    return datetime.now(UTC) - age
 
 
-def _cutoff(age: timedelta) -> str:
-    return (datetime.now(UTC) - age).isoformat()
+def _utc(value: datetime | None) -> datetime | None:
+    """min/max через агрегат теряют тип колонки: в SQLite приходят наивной строкой/датой без поправки."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)

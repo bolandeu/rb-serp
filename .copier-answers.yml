@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v1.2.7
+_commit: v1.4.0
 _src_path: gh:bolandeu/cli-generator
 author_name: bolandeu
 cli_name: serp
@@ -8,6 +8,8 @@ dist_name: rb-serp
 dist_name_legacy: ''
 include_auth: true
 include_ci: true
+include_db: true
+include_http_provider: true
 package_name: rb_serp
 private_deps: false
 project_name: serp

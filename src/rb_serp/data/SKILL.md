@@ -13,9 +13,10 @@ description: Поисковая выдача Яндекса и Google (топ-N:
 ## Установка (если `serp --version` не работает)
 
 ```bash
-uv tool install "git+https://github.com/bolandeu/serp.git"
+uv tool install "rb-serp @ git+https://github.com/bolandeu/serp.git@vX.Y.Z"
 ```
 
+Вместо `vX.Y.Z` — последний тег релиза (ставить только с тега, не с ветки).
 Одинаково на macOS, Linux и Windows; обновление — `uv tool upgrade rb-serp`
 (пакет называется `rb-serp`, команда — `serp`). Не запускать из исходников,
 если не просили разрабатывать сам CLI.
@@ -27,7 +28,7 @@ uv tool install "git+https://github.com/bolandeu/serp.git"
 SSH-ключами работает и так:
 
 ```bash
-uv tool install "git+ssh://git@github.com/bolandeu/serp.git"
+uv tool install "rb-serp @ git+ssh://git@github.com/bolandeu/serp.git@vX.Y.Z"
 ```
 
 ## Правила
@@ -52,6 +53,14 @@ uv tool install "git+ssh://git@github.com/bolandeu/serp.git"
   поля), ads (реклама, Яндекс), related (похожие запросы/вопросы, Google),
   summary (сколько нашлось, ИИ-ответ). Журнал — `serp cache info|list|clear`;
   `cache clear` необратим (правило про --dry-run/--confirm ниже).
+- **Данные** — в общем PostgreSQL, если задан `SERP_DATABASE_URL` (иначе
+  локальная SQLite). `DATABASE_UNAVAILABLE` (код 5) — сервер недоступен,
+  платный запрос не делался и ничего не записано; `DATABASE_NOT_MIGRATED` →
+  `serp db upgrade` (меняет общую базу — сначала спросить пользователя);
+  `db status --json` — ревизия схемы. `db push --dry-run`, затем `db push` —
+  отправить новые локальные ответы в прод (`SERP_PROD_DATABASE_URL`; уже
+  имеющиеся пропускаются). Читать данные serp из SQL — только представления
+  `serp_v1_*`; у каждого ответа есть `fetched_at` (UTC) — дата получения.
 - **Проект необязателен.** Без него работают настройки по умолчанию;
   `serp init --non-interactive` создаёт `.serp/config.toml`, чтобы закрепить
   очередь провайдеров за папкой. Проект ищется вверх от текущей папки или
@@ -82,7 +91,7 @@ uv tool install "git+ssh://git@github.com/bolandeu/serp.git"
     2  неверные аргументы
     3  нужны доступы              → serp auth login --provider <имя>
     4  проект не создан           → serp init
-    5  сбой провайдера (сеть, деньги на счёте, лимиты; повторы уже были) → позже или другой провайдер
-    6  CLI старее, чем нужно проекту → uv tool upgrade rb-serp
+    5  сбой провайдера (сеть, деньги на счёте, лимиты; повторы уже были) или общая база недоступна → позже или другой провайдер
+    6  CLI старее, чем нужно проекту или общей базе → uv tool upgrade rb-serp
 
 Автоматически повторять имеет смысл только код 5.

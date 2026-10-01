@@ -4,8 +4,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+import sqlalchemy as sa
 
-from rb_serp.core.cache import ResponseCache, default_path
+from rb_serp.core import db
+from rb_serp.core.cache import ResponseCache
 
 
 def put(
@@ -30,8 +32,10 @@ def latest(cache: ResponseCache, query: str = "купить диван", *, prov
     )
 
 
-def test_default_path_follows_env(isolated_cache: Path) -> None:
-    assert default_path() == isolated_cache
+def test_journal_is_the_tool_database(_local_database: Path) -> None:
+    put(ResponseCache())
+    assert _local_database.is_file()
+    assert ResponseCache().stats().entries == 1
 
 
 def test_latest_is_newest_and_ignores_case_and_spaces() -> None:
@@ -64,38 +68,58 @@ def test_incomplete_is_kept_but_never_served() -> None:
     assert [e.complete for e in cache.entries()] == [False, True]
 
 
-def test_old_database_is_migrated(isolated_cache: Path) -> None:
+def _legacy_db(path: Path, *, with_complete: bool) -> None:
+    """Журнал serp <= 0.4: таблица responses, даты ISO с поправкой, без Alembic."""
     import sqlite3
     import zlib
 
-    from .conftest import fixture_xml
-
-    isolated_cache.parent.mkdir(parents=True)
-    conn = sqlite3.connect(isolated_cache)
-    conn.execute(  # схема 0.2.x — без complete
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.execute(
         "CREATE TABLE responses (id INTEGER PRIMARY KEY, fetched_at TEXT NOT NULL, provider TEXT NOT NULL,"
         " engine TEXT NOT NULL, region TEXT NOT NULL, query TEXT NOT NULL, query_key TEXT NOT NULL,"
-        " page INTEGER NOT NULL, xml BLOB NOT NULL)"
+        " page INTEGER NOT NULL, xml BLOB NOT NULL"
+        + (", complete INTEGER NOT NULL DEFAULT 1)" if with_complete else ")")
     )
-    partial = "<yandexsearch><response><found>5000</found><results><grouping><group><doc><url>https://a.ru/</url></doc></group></grouping></results></response></yandexsearch>"
-    for xml in (fixture_xml("xmlstock_yandex.xml"), partial):
-        conn.execute(
-            "INSERT INTO responses (fetched_at, provider, engine, region, query, query_key, page, xml)"
-            " VALUES (?, 'xmlriver', 'yandex', '213', 'q', 'q', 0, ?)",
-            (datetime.now(UTC).isoformat(), zlib.compress(xml.encode())),
+    conn.execute("CREATE INDEX responses_date ON responses (fetched_at)")
+    rows = [("2026-09-23T13:34:02.673606+00:00", "Купить  Ёлку", 1), ("2026-09-28T19:41:25+00:00", "q", 0)]
+    for fetched_at, query, complete in rows:
+        columns, values = (
+            "fetched_at, provider, engine, region, query, query_key, page, xml",
+            "?, 'xmlriver', 'yandex', '213', ?, ?, 0, ?",
         )
+        args = [fetched_at, query, query.lower(), zlib.compress(b"<a/>")]
+        if with_complete:
+            columns, values, args = columns + ", complete", values + ", ?", [*args, complete]
+        conn.execute(f"INSERT INTO responses ({columns}) VALUES ({values})", args)  # noqa: S608
     conn.commit()
     conn.close()
 
-    assert [e.complete for e in ResponseCache().entries()] == [False, True]
+
+def test_legacy_journal_moves_to_serp_responses_with_its_dates(_local_database: Path) -> None:
+    _legacy_db(_local_database, with_complete=True)
+    entries = ResponseCache().entries()
+    assert [(e.fetched_at, e.query, e.complete) for e in entries] == [
+        (datetime(2026, 9, 28, 19, 41, 25, tzinfo=UTC), "q", False),
+        (datetime(2026, 9, 23, 13, 34, 2, 673606, tzinfo=UTC), "Купить  Ёлку", True),
+    ]
+    hit = latest(ResponseCache(), "купить елку", provider="xmlriver")  # ключ пересчитан: ё→е
+    assert hit is not None and hit.fetched_at == datetime(2026, 9, 23, 13, 34, 2, 673606, tzinfo=UTC)
+    engine = db.open_db()
+    names = sa.inspect(engine).get_table_names()
+    assert "responses" not in names and "serp_responses" in names
+    assert sa.inspect(engine).get_view_names() == ["serp_v1_responses"]
+
+
+def test_journal_before_0_3_counts_as_complete(_local_database: Path) -> None:
+    _legacy_db(_local_database, with_complete=False)
+    assert [e.complete for e in ResponseCache().entries()] == [True, True]
 
 
 def test_max_age_and_clear_older(monkeypatch: pytest.MonkeyPatch) -> None:
     cache = ResponseCache()
     put(cache, "старый")
-    monkeypatch.setattr(
-        "rb_serp.core.cache._cutoff", lambda age: (datetime.now(UTC) + timedelta(seconds=1)).isoformat()
-    )
+    monkeypatch.setattr("rb_serp.core.cache._cutoff", lambda age: datetime.now(UTC) + timedelta(seconds=1))
     assert latest(cache, "старый", max_age=timedelta(days=1)) is None
     assert cache.count_older(timedelta(days=1)) == 1
     assert cache.clear(timedelta(days=1)) == 1
@@ -115,11 +139,18 @@ def test_stats_entries_and_clear_all() -> None:
     assert cache.clear(None) == 2
 
 
-def test_help_line_shows_size_without_creating_db(isolated_cache: Path) -> None:
+def test_help_line_shows_size_without_creating_db(_local_database: Path) -> None:
     from rb_serp.core.cache import help_line, human_size
 
     assert "пока пуст" in help_line()
-    assert not isolated_cache.exists()  # справка не создаёт базу
+    assert not _local_database.exists()  # справка не создаёт базу
     put(ResponseCache())
     assert "КБ" in help_line()
     assert human_size(512) == "512 Б" and human_size(3 * 1024**3) == "3.0 ГБ"
+
+
+def test_help_line_names_the_shared_database_without_password(monkeypatch: pytest.MonkeyPatch) -> None:
+    from rb_serp.core.cache import help_line
+
+    monkeypatch.setenv(db.ENV_VAR, "postgresql://serp:secret@homeserver:5432/directus")
+    assert "homeserver" in help_line() and "secret" not in help_line()

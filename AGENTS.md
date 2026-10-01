@@ -64,6 +64,19 @@ changed with no changelog fragment on the branch.
   `--dry-run` (`output.is_dry_run`) and gate the actual action behind
   `output.require_confirmation`. Commands that only touch local project
   files (`init`, `config set`) don't need this.
+- Data goes through `core/db.py` (cli-generator `architecture.md` §12).
+  `SERP_DATABASE_URL` → the shared PostgreSQL, else local SQLite
+  (`SERP_DB_PATH` moves the file). Caches go there too; anything kept local
+  instead is listed here, with the reason.
+  Tables, views, indexes: `serp_*` only, declared in `core/tables.py`
+  and created by a hand-written migration in `migrations/versions/`.
+  Other tools read only the `serp_v1_*` views — a new shape is a `_v2_`
+  view plus a Service map entry. Cross-tool keys: `core/normalize.py`,
+  stored next to the original text. Every migration must keep working
+  with the previous release (expand/contract); the shared base is
+  migrated only by `serp db upgrade` from a release. Append-only
+  tables with a unique natural key can be marked `info={"push": ...}` for
+  `serp db push` (local SQLite → `SERP_PROD_DATABASE_URL`).
 
 ## Names
 

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sqlite3
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import exc as sa_exc
 
 from ..providers import SerpProvider, provider_class
 from .cache import ResponseCache
@@ -98,6 +99,7 @@ class SerpClient:
         max_age: timedelta | None = None,
     ) -> list[PageFetch]:
         """Все страницы по всем запросам и поисковикам; `pages` — сколько (по умолчанию под `top`)."""
+        self._open_journal()
         requests = [
             PageRequest(
                 query=query,
@@ -227,6 +229,21 @@ class SerpClient:
     def _names(self) -> list[str]:
         return [item if isinstance(item, str) else item.name for item in self._chain]
 
+    def _open_journal(self) -> None:
+        """Открыть журнал до первого платного запроса.
+
+        Общая база недоступна или не мигрирована (`CliError`: DATABASE_UNAVAILABLE,
+        DATABASE_NOT_MIGRATED, CLI_TOO_OLD) — ошибка сразу, а не оплаченный ответ,
+        который некуда записать. Сбой локального файла — только предупреждение,
+        как и при записи.
+        """
+        if self.cache is None:
+            return
+        try:
+            self.cache.engine  # noqa: B018 — открывает базу
+        except (sa_exc.SQLAlchemyError, OSError) as exc:
+            log.warning("Журнал %s недоступен: %s", self.cache.path, exc)
+
     def _save(self, provider: str, request: PageRequest, xml: str, complete: bool) -> datetime:
         """Записать ответ в журнал; сбой диска не должен ломать уже оплаченный поиск."""
         if self.cache is not None:
@@ -240,6 +257,6 @@ class SerpClient:
                     xml=xml,
                     complete=complete,
                 )
-            except sqlite3.Error as exc:
+            except (sa_exc.SQLAlchemyError, OSError) as exc:
                 log.warning("Не удалось записать ответ в журнал %s: %s", self.cache.path, exc)
         return datetime.now(UTC)
