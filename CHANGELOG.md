@@ -10,6 +10,13 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.5.0] - 2026-10-01
+
+### Changed
+
+- Журнал ответов (кэш) — в базе инструмента: общий PostgreSQL из `SERP_DATABASE_URL` (таблица `serp_responses`, представление `serp_v1_responses`) или, без неё, локальная SQLite; при первом запуске старая таблица `responses` переносится с исходными датами получения. Новые команды `serp db status|upgrade|import-sqlite|push`; общая база недоступна или не мигрирована — ошибка до платного запроса (коды 5/1/6).
+
+
 ## [0.4.1] - 2026-09-27
 
 ### Changed
