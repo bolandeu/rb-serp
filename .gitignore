@@ -12,3 +12,5 @@ __pycache__/
 build/
 dist/
 htmlcov/
+# mutmut's working copy and results (uv run --group mutation mutmut run)
+mutants/
