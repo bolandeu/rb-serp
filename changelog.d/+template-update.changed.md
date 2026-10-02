@@ -1,1 +1,1 @@
-Шаблон cli-generator v1.5.0: `describe --json`; таблица `serp_responses` помечена как кэш (`kind: cache`), представление `serp_v1_responses` объявлено в `tables.views`. Существующие команды и их вывод не менялись.
+Шаблон cli-generator v1.5.1: `describe --json`; таблица `serp_responses` помечена как кэш (`kind: cache`), представление `serp_v1_responses` объявлено в `tables.views`. Существующие команды и их вывод не менялись.
