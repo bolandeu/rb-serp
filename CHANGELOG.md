@@ -10,6 +10,17 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.6.0] - 2026-10-02
+
+### Added
+
+- `serp describe --json` — контракт инструмента в формате OpenCLI (команды, опции, коды выхода, переменные окружения, таблицы и представление `serp_v1_responses`) для каталога tools и Windmill.
+
+### Changed
+
+- Шаблон cli-generator v1.5.1: `describe --json`; таблица `serp_responses` помечена как кэш (`kind: cache`), представление `serp_v1_responses` объявлено в `tables.views`. Существующие команды и их вывод не менялись.
+
+
 ## [0.5.0] - 2026-10-01
 
 ### Changed
