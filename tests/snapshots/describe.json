@@ -1,0 +1,2526 @@
+{
+  "opencli": "0.1",
+  "info": {
+    "title": "serp",
+    "version": "<version>",
+    "summary": "Поисковая выдача Яндекса и Google через SERP-провайдеров (XML River, XMLStock) с фолбэком: CLI serp и библиотека rb_serp"
+  },
+  "command": {
+    "name": "serp",
+    "options": [
+      {
+        "name": "--project",
+        "arguments": [
+          {
+            "name": "PROJECT",
+            "required": true
+          }
+        ],
+        "description": "Путь к корню проекта (иначе ищется вверх от текущей папки).",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "str"
+          }
+        ]
+      },
+      {
+        "name": "--json",
+        "description": "Машиночитаемый вывод: JSON в stdout.",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "boolean"
+          },
+          {
+            "name": "x-rb-default",
+            "value": false
+          }
+        ]
+      },
+      {
+        "name": "--quiet",
+        "description": "Не печатать ничего, кроме данных.",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "boolean"
+          },
+          {
+            "name": "x-rb-default",
+            "value": false
+          }
+        ]
+      },
+      {
+        "name": "--verbose",
+        "description": "Подробная диагностика в stderr.",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "boolean"
+          },
+          {
+            "name": "x-rb-default",
+            "value": false
+          }
+        ]
+      },
+      {
+        "name": "--non-interactive",
+        "description": "Никогда не спрашивать; при нехватке данных — ошибка.",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "boolean"
+          },
+          {
+            "name": "x-rb-default",
+            "value": false
+          }
+        ]
+      },
+      {
+        "name": "--dry-run",
+        "description": "Показать, что будет сделано, ничего не меняя.",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "boolean"
+          },
+          {
+            "name": "x-rb-default",
+            "value": false
+          }
+        ]
+      },
+      {
+        "name": "--version",
+        "description": "Показать версию и выйти.",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "boolean"
+          },
+          {
+            "name": "x-rb-default",
+            "value": false
+          }
+        ]
+      },
+      {
+        "name": "--ai",
+        "description": "Напечатать памятку для AI-агентов (SKILL.md) и выйти.",
+        "metadata": [
+          {
+            "name": "x-rb-type",
+            "value": "boolean"
+          },
+          {
+            "name": "x-rb-default",
+            "value": false
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "name": "init",
+        "description": "Создать проект в папке: .serp/config.toml с очередью провайдеров и min_version.\n\nExample: serp init --non-interactive",
+        "options": [
+          {
+            "name": "--name",
+            "arguments": [
+              {
+                "name": "NAME",
+                "required": true
+              }
+            ],
+            "description": "Имя проекта (по умолчанию — имя папки).",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--force",
+            "description": "Перезаписать настройки уже созданного проекта.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "status",
+        "description": "Показать проект: имя, путь, очередь провайдеров.\n\nExample: serp status --json",
+        "options": [
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "doctor",
+        "description": "Диагностика: версия, проект, настройки, база, связка ключей, доступы провайдеров.\n\nВсегда завершается с кодом 0 — результат это сам отчёт; `healthy`\nговорит, прошли ли все проверки.\n\nExample: serp doctor --json",
+        "options": [
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "search",
+        "description": "Позиции в выдаче Yandex/Google: позиция, домен, URL, заголовок.\n\nЗапросы выполняются по очереди; для каждой страницы провайдеры пробуются\nпо порядку из --provider, пока один не ответит. Отказали все → ошибка\nPROVIDER_ERROR (exit 5) или AUTH_REQUIRED (exit 3). Пустая выдача без\nсбоя — не ошибка. Ровно --top позиций, дубли между страницами убраны.\n\nОтвет провайдера целиком (с рекламой, похожими запросами и т.д.) всегда\nпишется в журнал; другие блоки отдают команды snippets, ads, related,\nsummary — с --cache они берут уже полученный ответ бесплатно.\n\n--json: {\"ok\": true, \"count\": N, \"results\": [{serp_position, query,\nsearchengine, url, domain, title}, ...], \"sources\": [{query, engine,\npage, provider, fetched_at, from_cache, complete}, ...]} (+ \"saved_to\"\nпри --output). complete=false — провайдер отдал неполную страницу\n(повтор и следующий провайдер не помогли); из журнала такая не отдаётся.\n--format table печатает таблицу в stderr по мере готовности запросов;\ncsv/domains/domains-se печатают данные в stdout.\n\n\b\nExample: serp search \"python разработка\"\n         serp search \"seo\" \"продвижение\" --engine both --top 20\n         serp search \"такси\" --yandex-lr 2 --format domains\n         serp search \"ремонт\" -e google --google-loc 1012153\n         serp search \"запрос\" -e both -p xmlstock,xmlriver   # xmlriver — фолбэк\n         serp search \"запрос\" --cache --max-age 7d          # из журнала, если свежее недели\n         serp search \"запрос\" --json --output results.csv",
+        "options": [
+          {
+            "name": "--engine",
+            "aliases": [
+              "-e"
+            ],
+            "arguments": [
+              {
+                "name": "ENGINE",
+                "required": true,
+                "acceptedValues": [
+                  "yandex",
+                  "google",
+                  "both"
+                ]
+              }
+            ],
+            "description": "Поисковая система.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "choice"
+              },
+              {
+                "name": "x-rb-default",
+                "value": "yandex"
+              }
+            ]
+          },
+          {
+            "name": "--top",
+            "aliases": [
+              "-n"
+            ],
+            "arguments": [
+              {
+                "name": "TOP",
+                "required": true
+              }
+            ],
+            "description": "Количество результатов (кратно 10).",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "int range"
+              },
+              {
+                "name": "x-rb-default",
+                "value": 10
+              }
+            ]
+          },
+          {
+            "name": "--format",
+            "aliases": [
+              "-f"
+            ],
+            "arguments": [
+              {
+                "name": "FMT",
+                "required": true,
+                "acceptedValues": [
+                  "table",
+                  "csv",
+                  "domains",
+                  "domains-se"
+                ]
+              }
+            ],
+            "description": "Формат вывода для человека.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "choice"
+              },
+              {
+                "name": "x-rb-default",
+                "value": "table"
+              }
+            ]
+          },
+          {
+            "name": "--output",
+            "aliases": [
+              "-o"
+            ],
+            "arguments": [
+              {
+                "name": "OUTPUT_PATH",
+                "required": true
+              }
+            ],
+            "description": "Дополнительно сохранить в файл: .csv → CSV, иначе JSON-массив.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "path"
+              }
+            ]
+          },
+          {
+            "name": "--yandex-lr",
+            "arguments": [
+              {
+                "name": "YANDEX_LR",
+                "required": true
+              }
+            ],
+            "description": "Код региона Яндекса (lr), по умолчанию 213=Москва; 2=СПб, 35=Краснодар. Все коды: https://yandex.ru/dev/xml/doc/ru/reference/regions",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "int"
+              }
+            ]
+          },
+          {
+            "name": "--google-loc",
+            "arguments": [
+              {
+                "name": "GOOGLE_LOC",
+                "required": true
+              }
+            ],
+            "description": "Criteria ID локации Google, по умолчанию 1011969=Москва; 1012153=СПб. Все коды: https://xmlriver.com/files/geo.csv",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--provider",
+            "aliases": [
+              "-p"
+            ],
+            "arguments": [
+              {
+                "name": "PROVIDER",
+                "required": true
+              }
+            ],
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--cache",
+            "description": "Взять ответ из журнала, если такой запрос (поисковик, регион, текст, страница) уже был — бесплатно. Только полные ответы провайдеров из --provider, в порядке очереди: ответ XMLStock не выдаётся за ответ XML River. Без флага — всегда живой запрос. Ответы пишутся в журнал всегда.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--max-age",
+            "arguments": [
+              {
+                "name": "MAX_AGE",
+                "required": true
+              }
+            ],
+            "description": "С --cache: брать из журнала, только если запись не старше срока: 30m, 12h, 7d, 2w.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--force",
+            "description": "Всегда живой запрос, даже с --cache; новый ответ станет актуальным.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "name": "queries",
+            "required": true,
+            "arity": {
+              "minimum": 1
+            },
+            "description": "Один или несколько поисковых запросов.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              },
+              {
+                "name": "x-rb-multiple",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "snippets",
+        "description": "Выдача со всеми полями: сниппет, хлебные крошки, рейтинг, имя сайта, дата.\n\nТе же позиции, что у search, плюс всё, что провайдер отдал о результате.\nКакие поля заполнены, зависит от провайдера и поисковика: breadcrumbs —\nвезде, кроме XML River/Яндекс; stars, pubdate, cachelink — XML River/Google;\nsite_name — XMLStock/Google.\n\n--json: {\"ok\": true, \"count\": N, \"results\": [{serp_position, query,\nsearchengine, url, domain, title, snippet, breadcrumbs, stars, site_name,\npubdate, cachelink, contenttype}, ...], \"sources\": [...]}.\n\n\b\nExample: serp snippets \"купить диван\" --cache\n         serp snippets \"купить диван\" -e google --top 20 --json",
+        "options": [
+          {
+            "name": "--engine",
+            "aliases": [
+              "-e"
+            ],
+            "arguments": [
+              {
+                "name": "ENGINE",
+                "required": true,
+                "acceptedValues": [
+                  "yandex",
+                  "google",
+                  "both"
+                ]
+              }
+            ],
+            "description": "Поисковая система.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "choice"
+              },
+              {
+                "name": "x-rb-default",
+                "value": "yandex"
+              }
+            ]
+          },
+          {
+            "name": "--top",
+            "aliases": [
+              "-n"
+            ],
+            "arguments": [
+              {
+                "name": "TOP",
+                "required": true
+              }
+            ],
+            "description": "Количество результатов (кратно 10).",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "int range"
+              },
+              {
+                "name": "x-rb-default",
+                "value": 10
+              }
+            ]
+          },
+          {
+            "name": "--yandex-lr",
+            "arguments": [
+              {
+                "name": "YANDEX_LR",
+                "required": true
+              }
+            ],
+            "description": "Код региона Яндекса (lr), по умолчанию 213=Москва; 2=СПб, 35=Краснодар. Все коды: https://yandex.ru/dev/xml/doc/ru/reference/regions",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "int"
+              }
+            ]
+          },
+          {
+            "name": "--google-loc",
+            "arguments": [
+              {
+                "name": "GOOGLE_LOC",
+                "required": true
+              }
+            ],
+            "description": "Criteria ID локации Google, по умолчанию 1011969=Москва; 1012153=СПб. Все коды: https://xmlriver.com/files/geo.csv",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--provider",
+            "aliases": [
+              "-p"
+            ],
+            "arguments": [
+              {
+                "name": "PROVIDER",
+                "required": true
+              }
+            ],
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--cache",
+            "description": "Взять ответ из журнала, если такой запрос (поисковик, регион, текст, страница) уже был — бесплатно. Только полные ответы провайдеров из --provider, в порядке очереди: ответ XMLStock не выдаётся за ответ XML River. Без флага — всегда живой запрос. Ответы пишутся в журнал всегда.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--max-age",
+            "arguments": [
+              {
+                "name": "MAX_AGE",
+                "required": true
+              }
+            ],
+            "description": "С --cache: брать из журнала, только если запись не старше срока: 30m, 12h, 7d, 2w.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--force",
+            "description": "Всегда живой запрос, даже с --cache; новый ответ станет актуальным.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "name": "queries",
+            "required": true,
+            "arity": {
+              "minimum": 1
+            },
+            "description": "Один или несколько поисковых запросов.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              },
+              {
+                "name": "x-rb-multiple",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "ads",
+        "description": "Реклама на первой странице выдачи: над выдачей (top) и под ней (bottom).\n\nНа практике рекламу отдаёт только XMLStock для Яндекса (-p xmlstock):\nXML River рекламу Яндекса не запрашивает — с ней он урезает выдачу, а для\nGoogle оба сервиса рекламу обычно не возвращают. Нет рекламы — пустой\nсписок, не ошибка.\n\n--json: {\"ok\": true, \"count\": N, \"results\": [{query, searchengine,\nplacement, position, url, domain, title, snippet, price}, ...],\n\"sources\": [...]}.\n\n\b\nExample: serp ads \"купить диван\" -p xmlstock\n         serp ads \"купить диван\" -p xmlstock --cache --json",
+        "options": [
+          {
+            "name": "--engine",
+            "aliases": [
+              "-e"
+            ],
+            "arguments": [
+              {
+                "name": "ENGINE",
+                "required": true,
+                "acceptedValues": [
+                  "yandex",
+                  "google",
+                  "both"
+                ]
+              }
+            ],
+            "description": "Поисковая система.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "choice"
+              },
+              {
+                "name": "x-rb-default",
+                "value": "yandex"
+              }
+            ]
+          },
+          {
+            "name": "--yandex-lr",
+            "arguments": [
+              {
+                "name": "YANDEX_LR",
+                "required": true
+              }
+            ],
+            "description": "Код региона Яндекса (lr), по умолчанию 213=Москва; 2=СПб, 35=Краснодар. Все коды: https://yandex.ru/dev/xml/doc/ru/reference/regions",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "int"
+              }
+            ]
+          },
+          {
+            "name": "--google-loc",
+            "arguments": [
+              {
+                "name": "GOOGLE_LOC",
+                "required": true
+              }
+            ],
+            "description": "Criteria ID локации Google, по умолчанию 1011969=Москва; 1012153=СПб. Все коды: https://xmlriver.com/files/geo.csv",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--provider",
+            "aliases": [
+              "-p"
+            ],
+            "arguments": [
+              {
+                "name": "PROVIDER",
+                "required": true
+              }
+            ],
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--cache",
+            "description": "Взять ответ из журнала, если такой запрос (поисковик, регион, текст, страница) уже был — бесплатно. Только полные ответы провайдеров из --provider, в порядке очереди: ответ XMLStock не выдаётся за ответ XML River. Без флага — всегда живой запрос. Ответы пишутся в журнал всегда.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--max-age",
+            "arguments": [
+              {
+                "name": "MAX_AGE",
+                "required": true
+              }
+            ],
+            "description": "С --cache: брать из журнала, только если запись не старше срока: 30m, 12h, 7d, 2w.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--force",
+            "description": "Всегда живой запрос, даже с --cache; новый ответ станет актуальным.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "name": "queries",
+            "required": true,
+            "arity": {
+              "minimum": 1
+            },
+            "description": "Один или несколько поисковых запросов.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              },
+              {
+                "name": "x-rb-multiple",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "related",
+        "description": "Похожие запросы (kind=search) и похожие вопросы (kind=question).\n\nНа практике это Google: похожие запросы — XMLStock, похожие вопросы —\nоба сервиса (у XML River с ответом и ссылкой, когда они есть). Для Яндекса\nобычно пусто. Нет блока — пустой список, не ошибка.\n\n--json: {\"ok\": true, \"count\": N, \"results\": [{query, searchengine, kind,\ntext, snippet, url}, ...], \"sources\": [...]}.\n\n\b\nExample: serp related \"купить диван\" -e google -p xmlstock\n         serp related \"купить диван\" -e google --cache --json",
+        "options": [
+          {
+            "name": "--engine",
+            "aliases": [
+              "-e"
+            ],
+            "arguments": [
+              {
+                "name": "ENGINE",
+                "required": true,
+                "acceptedValues": [
+                  "yandex",
+                  "google",
+                  "both"
+                ]
+              }
+            ],
+            "description": "Поисковая система.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "choice"
+              },
+              {
+                "name": "x-rb-default",
+                "value": "yandex"
+              }
+            ]
+          },
+          {
+            "name": "--yandex-lr",
+            "arguments": [
+              {
+                "name": "YANDEX_LR",
+                "required": true
+              }
+            ],
+            "description": "Код региона Яндекса (lr), по умолчанию 213=Москва; 2=СПб, 35=Краснодар. Все коды: https://yandex.ru/dev/xml/doc/ru/reference/regions",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "int"
+              }
+            ]
+          },
+          {
+            "name": "--google-loc",
+            "arguments": [
+              {
+                "name": "GOOGLE_LOC",
+                "required": true
+              }
+            ],
+            "description": "Criteria ID локации Google, по умолчанию 1011969=Москва; 1012153=СПб. Все коды: https://xmlriver.com/files/geo.csv",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--provider",
+            "aliases": [
+              "-p"
+            ],
+            "arguments": [
+              {
+                "name": "PROVIDER",
+                "required": true
+              }
+            ],
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--cache",
+            "description": "Взять ответ из журнала, если такой запрос (поисковик, регион, текст, страница) уже был — бесплатно. Только полные ответы провайдеров из --provider, в порядке очереди: ответ XMLStock не выдаётся за ответ XML River. Без флага — всегда живой запрос. Ответы пишутся в журнал всегда.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--max-age",
+            "arguments": [
+              {
+                "name": "MAX_AGE",
+                "required": true
+              }
+            ],
+            "description": "С --cache: брать из журнала, только если запись не старше срока: 30m, 12h, 7d, 2w.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--force",
+            "description": "Всегда живой запрос, даже с --cache; новый ответ станет актуальным.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "name": "queries",
+            "required": true,
+            "arity": {
+              "minimum": 1
+            },
+            "description": "Один или несколько поисковых запросов.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              },
+              {
+                "name": "x-rb-multiple",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "summary",
+        "description": "Сводка по первой странице: сколько нашлось, есть ли ИИ-ответ, число блоков.\n\nfound — сколько результатов у поисковика (Google через оба сервиса\nотдаёт условное 100); ai_present — показан ли ИИ-ответ (только Google, сам\nтекст платный и не запрашивается); knowledge_graph — карточка знаний\nGoogle (XML River), только непустые поля.\n\n--json: {\"ok\": true, \"count\": N, \"results\": [{query, searchengine, found,\nai_present, organic, ads, related, knowledge_graph}, ...], \"sources\": [...]}.\n\n\b\nExample: serp summary \"купить диван\" -e both --cache",
+        "options": [
+          {
+            "name": "--engine",
+            "aliases": [
+              "-e"
+            ],
+            "arguments": [
+              {
+                "name": "ENGINE",
+                "required": true,
+                "acceptedValues": [
+                  "yandex",
+                  "google",
+                  "both"
+                ]
+              }
+            ],
+            "description": "Поисковая система.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "choice"
+              },
+              {
+                "name": "x-rb-default",
+                "value": "yandex"
+              }
+            ]
+          },
+          {
+            "name": "--yandex-lr",
+            "arguments": [
+              {
+                "name": "YANDEX_LR",
+                "required": true
+              }
+            ],
+            "description": "Код региона Яндекса (lr), по умолчанию 213=Москва; 2=СПб, 35=Краснодар. Все коды: https://yandex.ru/dev/xml/doc/ru/reference/regions",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "int"
+              }
+            ]
+          },
+          {
+            "name": "--google-loc",
+            "arguments": [
+              {
+                "name": "GOOGLE_LOC",
+                "required": true
+              }
+            ],
+            "description": "Criteria ID локации Google, по умолчанию 1011969=Москва; 1012153=СПб. Все коды: https://xmlriver.com/files/geo.csv",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--provider",
+            "aliases": [
+              "-p"
+            ],
+            "arguments": [
+              {
+                "name": "PROVIDER",
+                "required": true
+              }
+            ],
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--cache",
+            "description": "Взять ответ из журнала, если такой запрос (поисковик, регион, текст, страница) уже был — бесплатно. Только полные ответы провайдеров из --provider, в порядке очереди: ответ XMLStock не выдаётся за ответ XML River. Без флага — всегда живой запрос. Ответы пишутся в журнал всегда.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--max-age",
+            "arguments": [
+              {
+                "name": "MAX_AGE",
+                "required": true
+              }
+            ],
+            "description": "С --cache: брать из журнала, только если запись не старше срока: 30m, 12h, 7d, 2w.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              }
+            ]
+          },
+          {
+            "name": "--force",
+            "description": "Всегда живой запрос, даже с --cache; новый ответ станет актуальным.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ],
+        "arguments": [
+          {
+            "name": "queries",
+            "required": true,
+            "arity": {
+              "minimum": 1
+            },
+            "description": "Один или несколько поисковых запросов.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "str"
+              },
+              {
+                "name": "x-rb-multiple",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "describe",
+        "description": "Print this CLI's machine-readable contract: an OpenCLI document (opencli.org).\n\nCommands, options, arguments, exit codes, plus `x-rb-*` metadata: env vars,\ntables, v1 views, data files, external programs. With --json it is the bare\ndocument on one line (no {\"ok\": ...} envelope); without, the same indented.\n\nExample: serp describe --json",
+        "options": [
+          {
+            "name": "--json",
+            "description": "Машиночитаемый вывод: JSON в stdout.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--quiet",
+            "description": "Не печатать ничего, кроме данных.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          },
+          {
+            "name": "--verbose",
+            "description": "Подробная диагностика в stderr.",
+            "metadata": [
+              {
+                "name": "x-rb-type",
+                "value": "boolean"
+              },
+              {
+                "name": "x-rb-default",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "config",
+        "description": "Настройки проекта (.serp/config.toml).",
+        "commands": [
+          {
+            "name": "list",
+            "description": "Показать все настройки проекта.\n\nExample: serp config list --json",
+            "options": [
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get",
+            "description": "Показать одну настройку.\n\nExample: serp config get providers",
+            "options": [
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ],
+            "arguments": [
+              {
+                "name": "key",
+                "required": true,
+                "arity": {
+                  "minimum": 1,
+                  "maximum": 1
+                },
+                "description": "Ключ настройки через точку, например providers или cli.min_version.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "set",
+            "description": "Изменить одну настройку (не секрет — ключи только через auth login).\n\nExample: serp config set providers \"xmlriver,xmlstock\"",
+            "options": [
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ],
+            "arguments": [
+              {
+                "name": "key",
+                "required": true,
+                "arity": {
+                  "minimum": 1,
+                  "maximum": 1
+                },
+                "description": "Ключ настройки через точку, например providers или cli.min_version.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  }
+                ]
+              },
+              {
+                "name": "value",
+                "required": true,
+                "arity": {
+                  "minimum": 1,
+                  "maximum": 1
+                },
+                "description": "Новое значение; для providers — список через запятую.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "auth",
+        "description": "Доступы к провайдерам (ключи в связке ключей ОС).",
+        "commands": [
+          {
+            "name": "status",
+            "description": "Доступы всех провайдеров: откуда взяты и работают ли. Значения не печатаются.\n\nБез --check — только наличие (статус `unchecked` или `missing`). С --check —\nбесплатный запрос баланса у каждого провайдера: `ok`, `invalid` (ключ отклонён),\n`quota_exhausted` (баланс ≤ 0), `unreachable`; остаток в `quota` (рубли).\nxmlriver обязателен, xmlstock — запасной (optional). Код 0 — обязательные в\nпорядке; 3 — обязательный не в порядке или любой ключ неверен; 2 — неизвестный\nпровайдер. Форма --json — общий контракт инструментов: `tool`, `version`,\n`checked_at`, `credentials[]` с `provider`, `required`, `fields`, `source`,\n`source_ref`, `status`, `expires_at`, `quota`, `message`. `source_ref` называет\nи старые имена переменных (XMLRIVER_USER, XMLRIVER_TOKEN), если они читаются.\n\nExample: serp auth status --check --json",
+            "options": [
+              {
+                "name": "--check",
+                "description": "Проверить каждый провайдер бесплатным запросом баланса (до 10 с).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--provider",
+                "arguments": [
+                  {
+                    "name": "PROVIDER",
+                    "required": true
+                  }
+                ],
+                "description": "Только этот провайдер (по умолчанию все). Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  }
+                ]
+              },
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "login",
+            "description": "Сохранить доступы провайдера в связку ключей ОС.\n\nКаждое поле берётся из переменной SERP_<PROVIDER>_<FIELD> (например\nSERP_XMLSTOCK_USER, SERP_XMLSTOCK_TOKEN), если она задана, иначе\nспрашивается. С --non-interactive недостающее поле — ошибка, а не вопрос.\n\nExample: serp auth login --provider xmlriver",
+            "options": [
+              {
+                "name": "--provider",
+                "arguments": [
+                  {
+                    "name": "PROVIDER",
+                    "required": true
+                  }
+                ],
+                "description": "Провайдер. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": "xmlriver"
+                  }
+                ]
+              },
+              {
+                "name": "--non-interactive",
+                "description": "Никогда не спрашивать; при нехватке данных — ошибка.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "logout",
+            "description": "Удалить доступы провайдера из связки ключей ОС.\n\nExample: serp auth logout --provider xmlstock",
+            "options": [
+              {
+                "name": "--provider",
+                "arguments": [
+                  {
+                    "name": "PROVIDER",
+                    "required": true
+                  }
+                ],
+                "description": "Провайдер. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": "xmlriver"
+                  }
+                ]
+              },
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "skill",
+        "description": "Памятка serp для AI-агентов.",
+        "commands": [
+          {
+            "name": "install",
+            "description": "Скопировать памятку SKILL.md в папку навыков AI-инструмента.\n\nExample: serp skill install --tool claude-code",
+            "options": [
+              {
+                "name": "--tool",
+                "arguments": [
+                  {
+                    "name": "TOOL",
+                    "required": true
+                  }
+                ],
+                "description": "Для какого AI-инструмента: claude-code, agents.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": "claude-code"
+                  }
+                ]
+              },
+              {
+                "name": "--project",
+                "description": "Установить в текущий проект, а не для пользователя (во все проекты).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "cache",
+        "description": "Журнал всех ответов провайдеров (он же кэш для --cache).\n\nЖурнал ответов: /Users/bolandau/Library/Application Support/serp/serp.sqlite — 5 МБ.",
+        "commands": [
+          {
+            "name": "info",
+            "description": "Размер журнала, число записей, самая старая и новая, разбивка по провайдерам.\n\nExample: serp cache info --json",
+            "options": [
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "list",
+            "description": "Последние записи журнала (без самих ответов), свежие первыми.\n\n--json: {\"ok\": true, \"count\": N, \"results\": [{id, fetched_at, provider,\nengine, region, query, page, complete, size}, ...]}; size — сжатый размер\nответа, complete=false — неполная страница (из кэша не отдаётся).\n\nExample: serp cache list -q диван",
+            "options": [
+              {
+                "name": "--query",
+                "aliases": [
+                  "-q"
+                ],
+                "arguments": [
+                  {
+                    "name": "QUERY",
+                    "required": true
+                  }
+                ],
+                "description": "Только записи, где запрос содержит этот текст.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  }
+                ]
+              },
+              {
+                "name": "--limit",
+                "aliases": [
+                  "-n"
+                ],
+                "arguments": [
+                  {
+                    "name": "LIMIT",
+                    "required": true
+                  }
+                ],
+                "description": "Сколько последних записей показать.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "int range"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": 50
+                  }
+                ]
+              },
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "clear",
+            "description": "Удалить записи журнала: старше срока (--older-than) или все (--all).\n\nНеобратимо: сначала --dry-run (покажет, сколько удалится), затем\n--confirm (обязателен вместе с --non-interactive).\n\n--json: {\"ok\": true, \"deleted\": N} (при --dry-run — {\"dry_run\": true,\n\"would_delete\": N}).\n\nExample: serp cache clear --older-than 30d --dry-run",
+            "options": [
+              {
+                "name": "--older-than",
+                "arguments": [
+                  {
+                    "name": "OLDER_THAN",
+                    "required": true
+                  }
+                ],
+                "description": "Удалить записи старше срока: 30m, 12h, 7d, 2w.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  }
+                ]
+              },
+              {
+                "name": "--all",
+                "description": "Удалить весь журнал.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--dry-run",
+                "description": "Показать, что будет сделано, ничего не меняя.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--confirm",
+                "description": "Подтвердить необратимое действие (обязательно вместе с --non-interactive).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--non-interactive",
+                "description": "Никогда не спрашивать; при нехватке данных — ошибка.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "db",
+        "description": "Manage the tool's database (shared PostgreSQL or local SQLite).",
+        "commands": [
+          {
+            "name": "status",
+            "description": "Show which database is used and its schema revision against this CLI's.\n\nExample: serp db status --json",
+            "options": [
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "upgrade",
+            "description": "Apply pending schema migrations to the database.\n\nThe shared PostgreSQL is never migrated implicitly: run this from the\nreleased version after an upgrade that brings migrations. Concurrent runs\nwait for each other. A local SQLite database is migrated on every open anyway.\n\nExample: serp db upgrade --dry-run",
+            "options": [
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--dry-run",
+                "description": "Показать, что будет сделано, ничего не меняя.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "import-sqlite",
+            "description": "Copy a local SQLite database into the configured database, once.\n\nFor the move to the shared PostgreSQL: set the database URL, then run\nthis. Every target table must be empty; all rows go in one transaction.\n\nExample: serp db import-sqlite --dry-run",
+            "options": [
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--dry-run",
+                "description": "Показать, что будет сделано, ничего не меняя.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ],
+            "arguments": [
+              {
+                "name": "path",
+                "required": false,
+                "arity": {
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "description": "SQLite file to import (default: this tool's local database).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "path"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "push",
+            "description": "Send new rows of the push tables from the local SQLite to production.\n\nProduction is the PostgreSQL in `<CLI>_PROD_DATABASE_URL`; its schema\nrevision must match this CLI's. Rows go in\nwithout their ids; one whose natural key is already there is skipped.\nOne transaction; --dry-run counts exactly and writes nothing.\n\nExample: serp db push --since 2026-10-01 --dry-run",
+            "options": [
+              {
+                "name": "--table",
+                "arguments": [
+                  {
+                    "name": "TABLE",
+                    "required": true
+                  }
+                ],
+                "description": "Only this push table (repeatable; default: all of them).",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  },
+                  {
+                    "name": "x-rb-multiple",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "name": "--since",
+                "arguments": [
+                  {
+                    "name": "SINCE",
+                    "required": true
+                  }
+                ],
+                "description": "Only rows created at or after this date/time.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "datetime"
+                  }
+                ]
+              },
+              {
+                "name": "--where",
+                "arguments": [
+                  {
+                    "name": "WHERE",
+                    "required": true
+                  }
+                ],
+                "description": "Extra SQL condition on the local table, e.g. \"region = 213\".",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "str"
+                  }
+                ]
+              },
+              {
+                "name": "--json",
+                "description": "Машиночитаемый вывод: JSON в stdout.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--quiet",
+                "description": "Не печатать ничего, кроме данных.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "name": "--dry-run",
+                "description": "Показать, что будет сделано, ничего не меняя.",
+                "metadata": [
+                  {
+                    "name": "x-rb-type",
+                    "value": "boolean"
+                  },
+                  {
+                    "name": "x-rb-default",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "exitCodes": [
+      {
+        "code": 0,
+        "description": "Success"
+      },
+      {
+        "code": 1,
+        "description": "General error (incl. UNEXPECTED and ABORTED)"
+      },
+      {
+        "code": 2,
+        "description": "Invalid arguments"
+      },
+      {
+        "code": 3,
+        "description": "Authentication error"
+      },
+      {
+        "code": 4,
+        "description": "Project not initialized"
+      },
+      {
+        "code": 5,
+        "description": "Provider error (external service: network, timeout, 5xx, 429, bad body)"
+      },
+      {
+        "code": 6,
+        "description": "CLI too old for this project or database"
+      }
+    ],
+    "metadata": [
+      {
+        "name": "x-rb-tool",
+        "value": {
+          "tool": "serp",
+          "dist": "rb-serp",
+          "package": "rb_serp"
+        }
+      },
+      {
+        "name": "x-rb-template-version",
+        "value": "<template-version>"
+      },
+      {
+        "name": "x-rb-env",
+        "value": [
+          {
+            "name": "SERP_XMLRIVER_USER",
+            "purpose": "credential",
+            "provider": "xmlriver",
+            "field": "user",
+            "required": true,
+            "fallbacks": [
+              "XMLRIVER_USER"
+            ]
+          },
+          {
+            "name": "SERP_XMLRIVER_TOKEN",
+            "purpose": "credential",
+            "provider": "xmlriver",
+            "field": "token",
+            "required": true,
+            "fallbacks": [
+              "XMLRIVER_TOKEN"
+            ]
+          },
+          {
+            "name": "SERP_XMLSTOCK_USER",
+            "purpose": "credential",
+            "provider": "xmlstock",
+            "field": "user",
+            "required": false
+          },
+          {
+            "name": "SERP_XMLSTOCK_TOKEN",
+            "purpose": "credential",
+            "provider": "xmlstock",
+            "field": "token",
+            "required": false
+          },
+          {
+            "name": "SERP_DATABASE_URL",
+            "purpose": "database",
+            "description": "Shared PostgreSQL URL; unset → the local SQLite file",
+            "required": false
+          },
+          {
+            "name": "SERP_PROD_DATABASE_URL",
+            "purpose": "database",
+            "description": "Production PostgreSQL URL, the target of `db push` from a dev machine",
+            "required": false
+          },
+          {
+            "name": "SERP_DB_PATH",
+            "purpose": "database",
+            "description": "The local SQLite file, instead of the one in the user data dir",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "x-rb-data",
+        "value": {
+          "tables": [
+            {
+              "name": "serp_responses",
+              "kind": "cache",
+              "columns": [
+                {
+                  "name": "id",
+                  "type": "INTEGER",
+                  "nullable": false,
+                  "primary_key": true
+                },
+                {
+                  "name": "fetched_at",
+                  "type": "DATETIME",
+                  "nullable": false
+                },
+                {
+                  "name": "provider",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "engine",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "region",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "query",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "query_key",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "page",
+                  "type": "INTEGER",
+                  "nullable": false
+                },
+                {
+                  "name": "complete",
+                  "type": "BOOLEAN",
+                  "nullable": false
+                },
+                {
+                  "name": "xml",
+                  "type": "BLOB",
+                  "nullable": false
+                }
+              ],
+              "push": true
+            }
+          ],
+          "views": [
+            {
+              "name": "serp_v1_responses",
+              "description": "Журнал ответов провайдеров: строка на полученную страницу выдачи (без сырого XML)",
+              "columns": [
+                {
+                  "name": "fetched_at",
+                  "type": "DATETIME",
+                  "description": "Когда получен ответ, UTC"
+                },
+                {
+                  "name": "provider",
+                  "type": "TEXT",
+                  "description": "Провайдер выдачи (xmlriver, xmlstock)"
+                },
+                {
+                  "name": "engine",
+                  "type": "TEXT",
+                  "description": "Поисковик: yandex или google"
+                },
+                {
+                  "name": "region",
+                  "type": "TEXT",
+                  "description": "Регион: lr Яндекса / loc Google"
+                },
+                {
+                  "name": "query",
+                  "type": "TEXT",
+                  "description": "Запрос, как его ввёл пользователь"
+                },
+                {
+                  "name": "query_key",
+                  "type": "TEXT",
+                  "description": "Нормализованный запрос — ключ для связи"
+                },
+                {
+                  "name": "page",
+                  "type": "INTEGER",
+                  "description": "Номер страницы выдачи"
+                },
+                {
+                  "name": "complete",
+                  "type": "BOOLEAN",
+                  "description": "false — провайдер отдал неполную страницу"
+                }
+              ]
+            }
+          ],
+          "user_data_dir": {
+            "appname": "serp",
+            "files": [
+              {
+                "path": "serp.sqlite",
+                "kind": "data",
+                "description": "The local SQLite database, used when the shared database URL is unset"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "x-rb-external",
+        "value": []
+      }
+    ]
+  }
+}

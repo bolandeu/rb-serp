@@ -6,7 +6,7 @@ import typer
 from typer import rich_utils
 
 from . import output
-from .commands import auth, blocks, db, doctor, init, search, skill, status
+from .commands import auth, blocks, db, describe, doctor, init, search, skill, status
 from .commands import cache as cache_cmd
 from .commands import config as config_cmd
 from .core.cache import help_line as cache_help_line
@@ -46,6 +46,7 @@ app.command(name="snippets")(blocks.snippets)
 app.command(name="ads")(blocks.ads)
 app.command(name="related")(blocks.related)
 app.command(name="summary")(blocks.summary)
+app.command(name="describe")(describe.describe)
 
 
 def _version_callback(value: bool) -> None:

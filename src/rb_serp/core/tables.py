@@ -5,6 +5,15 @@ tool's tables (and Directus') in one `public` schema. Change a table here *and* 
 a migration by hand (copy the example in `migrations/versions/`) — tests/test_db.py
 fails when the migrated schema and this metadata disagree.
 
+Every table has a single-column PRIMARY KEY — Directus can't show or edit a
+table without one and doesn't support a composite one: a surrogate `id`, with the
+natural key as a UNIQUE constraint (tests/test_db.py checks this metadata and the
+migrated database).
+
+Every table says what its rows are, `info={"kind": "data"}` or `"cache"` (tests/test_db.py
+fails without it): `data` is the tool's result and lost when deleted; `cache` is a copy
+of something it can fetch again. `describe --json` publishes it (x-rb-data).
+
 `info={"push": {...}}` marks an append-only table for `<cli> db push` (local SQLite →
 production PostgreSQL): rows are inserted without their ids and skipped when one
 with the same natural key exists, so the table needs a unique constraint on that key
@@ -77,5 +86,27 @@ responses = sa.Table(
     sa.UniqueConstraint(
         "provider", "engine", "region", "query_key", "page", "fetched_at", name="serp_responses_natural_uq"
     ),
-    info={"push": {"since": "fetched_at"}},
+    info={"kind": "cache", "push": {"since": "fetched_at"}},
+)
+
+# The `<tool>_v1_*` views other tools, Directus and the platform read instead of the
+# tables — the tool's data contract, published by `describe --json` (x-rb-data.views).
+# Declared here for that, created by a migration (`CREATE VIEW`); tests/test_db.py
+# fails when a view below is missing from the migrated database or its columns differ.
+# Columns never change: a different shape is a new `_v2_` view next to the old one.
+# Kept out of `metadata`, which mirrors the tables only.
+views = sa.MetaData()
+
+v1_responses = sa.Table(
+    f"{PREFIX}v1_responses",
+    views,
+    sa.Column("fetched_at", UtcDateTime, comment="Когда получен ответ, UTC"),
+    sa.Column("provider", sa.Text, comment="Провайдер выдачи (xmlriver, xmlstock)"),
+    sa.Column("engine", sa.Text, comment="Поисковик: yandex или google"),
+    sa.Column("region", sa.Text, comment="Регион: lr Яндекса / loc Google"),
+    sa.Column("query", sa.Text, comment="Запрос, как его ввёл пользователь"),
+    sa.Column("query_key", sa.Text, comment="Нормализованный запрос — ключ для связи"),
+    sa.Column("page", sa.Integer, comment="Номер страницы выдачи"),
+    sa.Column("complete", sa.Boolean, comment="false — провайдер отдал неполную страницу"),
+    comment="Журнал ответов провайдеров: строка на полученную страницу выдачи (без сырого XML)",
 )
