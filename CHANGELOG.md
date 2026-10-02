@@ -10,6 +10,13 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.6.1] - 2026-10-02
+
+### Changed
+
+- Шаблон cli-generator v1.5.5: правила релиза и пуша для агентов (пушит dev после согласия пользователя); в `describe --json` имя файла локальной базы берётся из `core/db.py`. Команды и их вывод не менялись.
+
+
 ## [0.6.0] - 2026-10-02
 
 ### Added
