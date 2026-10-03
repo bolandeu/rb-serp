@@ -10,6 +10,13 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.7.3] - 2026-10-03
+
+### Changed
+
+- snippets, ads, related и summary в --json отдают стоимость, как search: billable_requests, cost, cost_currency, cost_source в sources[] и billable_requests_total, cost_total; с --cache ответ из журнала — 0 и cost_source "cache".
+
+
 ## [0.7.2] - 2026-10-03
 
 ### Changed
