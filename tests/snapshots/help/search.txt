@@ -14,17 +14,20 @@
 
  --json: {"ok": true, "count": N, "results": [{serp_position, query,
  searchengine, url, domain, title}, ...], "sources": [{query, engine,
- page, provider, fetched_at, from_cache, complete, cost, cost_currency},
- ...], "cost_total": X} (+ "saved_to" при --output). complete=false —
- провайдер отдал неполную страницу (повтор и следующий провайдер не
- помогли); из журнала такая не отдаётся.
+ page, provider, fetched_at, from_cache, complete, cost, cost_currency,
+ cost_source}, ...], "cost_total": X} (+ "saved_to" при --output).
+ complete=false — провайдер отдал неполную страницу (повтор и следующий
+ провайдер не помогли); из журнала такая не отдаётся.
 
  Стоимость: cost — рубли за страницу выдачи (cost_currency "RUB"),
- cost_total — сумма по всем страницам. Из журнала (from_cache=true) —
- 0. Цена за запрос — по провайдеру: env SERP_<PROVIDER>_PRICE (например
- SERP_XMLRIVER_PRICE=0.25) перекрывает [prices] в .serp/config.toml
- (xmlriver = 0.25). Цена не задана — cost и cost_total null,
- предупреждение в stderr, не ошибка; не число — INVALID_ARGUMENTS.
+ cost_total — сумма по всем страницам. Цена за запрос — по провайдеру:
+ env SERP_<PROVIDER>_PRICE (например SERP_XMLRIVER_PRICE=0.25; сервер и
+ Windmill передают только его) перекрывает [prices] в .serp/config.toml
+ (xmlriver = 0.25); не число — INVALID_ARGUMENTS. cost_source — откуда
+ cost: "provider" — фактическая из ответа провайдера (XML River и
+ XMLStock её не отдают), "price_table" — цена × страницы, "cache" — из
+ журнала (from_cache=true, cost 0), null — цена не задана (cost и
+ cost_total null, предупреждение в stderr, не ошибка).
  --format table печатает таблицу в stderr по мере готовности запросов;
  csv/domains/domains-se печатают данные в stdout.
 

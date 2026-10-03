@@ -1,0 +1,1 @@
+`search --json`: у каждого элемента `sources` — `cost_source`, откуда взята `cost`: `"price_table"` (цена × страницы; цена из `SERP_<PROVIDER>_PRICE` — его передают сервер и Windmill — или `[prices]` проекта), `"cache"` (из журнала, 0), `null` (цены нет), `"provider"` — фактическая стоимость из ответа провайдера (XML River и XMLStock её не отдают).

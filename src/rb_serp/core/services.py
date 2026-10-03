@@ -177,13 +177,22 @@ def provider_prices(providers: list[str], start: Path) -> dict[str, float | None
 
 
 def priced_sources(pages: list[PageFetch], prices: dict[str, float | None]) -> tuple[list[dict], float | None]:
-    """`sources` со стоимостью каждой страницы и итог; из журнала — 0, цена не задана — None (и итог None)."""
+    """`sources` со стоимостью каждой страницы и итог; из журнала — 0, цена не задана — None (и итог None).
+
+    cost_source: "cache" — из журнала, "price_table" — цена × 1 страницу, None — цены нет.
+    "provider" (фактическая стоимость из ответа) зарезервирован: XML River и XMLStock её не отдают.
+    """
     rows = sources(pages)
     total: float | None = 0.0
     for row, page in zip(rows, pages, strict=True):
-        cost = 0.0 if page.from_cache else prices.get(page.provider)
+        if page.from_cache:
+            cost, cost_source = 0.0, "cache"
+        else:
+            cost = prices.get(page.provider)
+            cost_source = "price_table" if cost is not None else None
         row["cost"] = cost
         row["cost_currency"] = COST_CURRENCY
+        row["cost_source"] = cost_source
         total = None if total is None or cost is None else total + cost
     return rows, (round(total, 6) if total is not None else None)
 
