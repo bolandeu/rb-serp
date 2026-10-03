@@ -344,10 +344,7 @@ def database_view_columns(view: str) -> dict[str, str]:
     """The view's columns (name -> SQL type) on the test database: tests' SQLite, or PostgreSQL under pg_test.sh."""
     engine = db.open_db(check=False)
     try:
-        if db.is_postgres(engine):
-            with engine.begin() as conn:
-                conn.execute(sa.text(f"CREATE SCHEMA IF NOT EXISTS {db.CACHE_SCHEMA}"))
-        db.upgrade(engine)
+        db.upgrade(engine)  # serp: db.py из шаблона v1.5.6 — кэш в общей схеме, отдельной CACHE_SCHEMA нет
         inspector = sa.inspect(engine)
         if view not in inspector.get_view_names():
             raise ContractError(f"no view '{view}' in the migrated {engine.dialect.name} database")

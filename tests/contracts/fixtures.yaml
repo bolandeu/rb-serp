@@ -6,6 +6,14 @@
 #   recorded responses, a filled cache, fake keys — for every case unless it says
 #   `offline_cache: false`; those get `no_cache` (if set) and must fail before
 #   reaching the provider.
-placeholders: {}
-offline_cache: null
+#
+# serp: офлайн-данные — фикстура `contract_offline` (tests/conftest.py): фальшивые
+# SERP_XMLSTOCK_* / SERP_XMLRIVER_* и httpx.MockTransport вместо сети. Ответы —
+# записи tests/fixtures/<провайдер>_<движок>.xml (запрос «купить диван»), для
+# fixture_empty_query — ошибка 15 «нет результатов». `--cache` пишет их в журнал
+# тестовой SQLite. Кейсы `offline_cache: false` идут без ключей (no_cache: null).
+placeholders:
+  fixture_query: купить диван
+  fixture_empty_query: zzqx ничего не найдено   # = CONTRACT_EMPTY_QUERY в tests/conftest.py
+offline_cache: contract_offline
 no_cache: null

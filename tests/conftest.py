@@ -3,10 +3,12 @@ from __future__ import annotations
 from collections.abc import Iterator
 from pathlib import Path
 
+import httpx
 import pytest
 import sqlalchemy as sa
 
 from rb_serp.core import db
+from rb_serp.providers.xmlriver import XmlRiverProvider
 
 
 @pytest.fixture(autouse=True)
@@ -54,3 +56,35 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def fixture_xml(name: str) -> str:
     return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+# ── Контракты потребителей (tests/test_contracts.py, tests/contracts/fixtures.yaml) ──
+
+CONTRACT_EMPTY_QUERY = "zzqx ничего не найдено"  # = placeholders.fixture_empty_query
+_NO_RESULTS_XML = (
+    '<?xml version="1.0" encoding="UTF-8"?><yandexsearch version="1.0"><response>'
+    '<error code="15">Sorry, there are no results for this search</error></response></yandexsearch>'
+)
+
+
+def _contract_response(request: httpx.Request) -> httpx.Response:
+    """Ответ провайдера без сети: пустая выдача (ошибка 15) для пустого запроса, иначе — запись из tests/fixtures."""
+    if request.url.params.get("query") == CONTRACT_EMPTY_QUERY:
+        return httpx.Response(200, text=_NO_RESULTS_XML)
+    provider = "xmlstock" if request.url.host == "xmlstock.com" else "xmlriver"
+    engine = "yandex" if "yandex" in request.url.path else "google"
+    return httpx.Response(200, text=fixture_xml(f"{provider}_{engine}.xml"))
+
+
+@pytest.fixture
+def contract_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Офлайн-данные кейсов контрактов: фальшивые ключи обоих провайдеров и MockTransport вместо сети."""
+    for provider in ("XMLSTOCK", "XMLRIVER"):
+        monkeypatch.setenv(f"SERP_{provider}_USER", "contract-user")
+        monkeypatch.setenv(f"SERP_{provider}_TOKEN", "contract-token")
+    init = XmlRiverProvider.__init__  # XmlStockProvider наследует
+
+    def offline_init(self, credential=None, *, transport=None, **kwargs) -> None:
+        init(self, credential, transport=transport or httpx.MockTransport(_contract_response), **kwargs)
+
+    monkeypatch.setattr(XmlRiverProvider, "__init__", offline_init)
