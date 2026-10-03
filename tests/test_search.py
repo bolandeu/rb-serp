@@ -223,3 +223,42 @@ def test_search_help_describes_cost() -> None:
     result = invoke("search", "--help", env={"COLUMNS": "200"})
     assert "cost_total" in result.output
     assert "SERP_<PROVIDER>_PRICE" in result.output
+
+
+# --- источник стоимости (T175) ----------------------------------------------------
+
+
+def test_search_cost_source_price_table_from_env(calls, tmp_path: Path) -> None:
+    code, payload = invoke_json("--project", str(tmp_path), "search", "a", env={"SERP_XMLRIVER_PRICE": "0.4"})
+    assert code == 0
+    assert payload["sources"][0]["cost_source"] == "price_table"
+
+
+def test_search_cost_source_price_table_from_config(calls, tmp_path: Path) -> None:
+    _write_prices(tmp_path, "xmlriver = 0.25")
+    code, payload = invoke_json("--project", str(tmp_path), "search", "a")
+    assert code == 0
+    assert payload["sources"][0]["cost_source"] == "price_table"
+
+
+def test_search_cost_source_cache(calls, tmp_path: Path) -> None:
+    code, payload = invoke_json("--project", str(tmp_path), "search", "a", "--cache")
+    assert code == 0
+    assert payload["sources"][0]["from_cache"] is True
+    assert payload["sources"][0]["cost_source"] == "cache"
+
+
+def test_search_cost_source_null_without_price(calls, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("SERP_XMLRIVER_PRICE", raising=False)
+    result = invoke("--project", str(tmp_path), "search", "a", "--json")
+    assert result.exit_code == 0
+    source = json.loads(result.stdout)["sources"][0]
+    assert source["cost"] is None
+    assert source["cost_source"] is None
+    assert "SERP_XMLRIVER_PRICE" in result.stderr
+
+
+def test_search_help_describes_cost_source() -> None:
+    result = invoke("search", "--help", env={"COLUMNS": "200"})
+    assert "cost_source" in result.output
+    assert "price_table" in result.output
