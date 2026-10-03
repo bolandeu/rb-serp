@@ -352,7 +352,7 @@ def check_existing_tests() -> str:
     return f"{len(found)} changed since {last} — put each in the release report with its reason:\n  {listed}"
 
 
-_CONTRACT_RESULT = re.compile(r"::test_contract\[([^\]]+)\] (PASSED|FAILED|SKIPPED|ERROR)")
+_CONTRACT_RESULT = re.compile(r"::test_contract\[([^\]]+)\] (PASSED|FAILED|SKIPPED|ERROR|XFAIL)")
 
 
 def contract_summary(output: str) -> str:
@@ -365,7 +365,9 @@ def contract_summary(output: str) -> str:
     summary = f"{cases} case{'s' * (cases != 1)} from {sources} consumer{'s' * (sources != 1)}"
     failed = sum(status in ("FAILED", "ERROR") for status in results.values())
     skipped = sum(status == "SKIPPED" for status in results.values())
+    expected = sum(status == "XFAIL" for status in results.values())  # serp: tests/contracts/xfail.yaml
     notes = [f"{failed} failed"] * bool(failed) + [f"{skipped} skipped (provider version)"] * bool(skipped)
+    notes += [f"{expected} expected to fail (tests/contracts/xfail.yaml)"] * bool(expected)
     return f"{summary}: {', '.join(notes)}" if notes else summary
 
 

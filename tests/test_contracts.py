@@ -28,7 +28,7 @@ import json
 import os
 import re
 import socket
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -49,6 +49,7 @@ from rb_serp.core.version import DEV_VERSION, cli_name, installed_version
 CONTRACTS = Path(__file__).parent / "contracts"
 SCHEMA = json.loads((CONTRACTS / "schema.json").read_text())
 FIXTURES = CONTRACTS / "fixtures.yaml"
+XFAIL = CONTRACTS / "xfail.yaml"  # serp: ожидаемые падения поставщика, id кейса -> причина
 # The version the gate is building (release.py sets it), else the installed one.
 VERSION_ENV = "RB_PROVIDER_VERSION"
 PG_URL = os.environ.get("TEST_DATABASE_URL")
@@ -353,6 +354,33 @@ def database_view_columns(view: str) -> dict[str, str]:
         engine.dispose()
 
 
+# --- expected failures (serp) ----------------------------------------------------
+
+
+def load_xfail(path: Path = XFAIL, *, known: list[str]) -> dict[str, str]:
+    """Cases this CLI is known to fail (id -> reason with the backlog item); an unknown id or no reason is an error."""
+    if not path.is_file():
+        return {}
+    content = _read(path, "xfail.yaml") or {}
+    if not isinstance(content, dict):
+        raise ContractError("xfail.yaml: a mapping of case id -> reason")
+    for case_id, reason in content.items():
+        if case_id not in known:
+            raise ContractError(f"xfail.yaml: no case '{case_id}' in the contracts — remove it")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ContractError(f"xfail.yaml: '{case_id}' needs a reason (the backlog item)")
+    return content
+
+
+def expect_failure(case_id: str, reason: str, check: Callable[[], None]) -> None:
+    """Strict xfail: the case must still fail; once it passes, the mark has to go."""
+    try:
+        check()
+    except ContractError as exc:
+        pytest.xfail(f"{reason}: {exc}")
+    raise ContractError(f"{case_id} passes now — remove it from tests/contracts/xfail.yaml")
+
+
 # --- the tests ---------------------------------------------------------------------
 
 
@@ -369,6 +397,11 @@ except ContractError as exc:  # a broken file fails the run, naming the file
 else:
     LOAD_ERROR = None
 CASES = [(contract, case_id, kind, spec) for contract in CONTRACT_LIST for case_id, kind, spec in cases(contract)]
+try:
+    XFAIL_SPEC = load_xfail(known=[case[1] for case in CASES])
+except ContractError as exc:
+    XFAIL_SPEC = {}
+    LOAD_ERROR = LOAD_ERROR or str(exc)
 
 
 def test_contract_files_are_valid() -> None:
@@ -388,7 +421,8 @@ def test_contract(
     if not applies(contract.data, version):
         pytest.skip(f"{case_id}: provider_range {contract.data['provider_range']}, this is {version}")
     document = opencli.document(typer.main.get_command(cli_app))
-    try:
+
+    def check() -> None:
         if kind == "command":
             check_static_command(spec, document)
         elif kind == "root_options":
@@ -404,5 +438,11 @@ def test_contract(
             if PG_URL:
                 monkeypatch.setenv(db.ENV_VAR, PG_URL)  # scripts/pg_test.sh: PostgreSQL, else the tests' SQLite
             check_view_columns(spec["name"], spec["columns"], database_view_columns(spec["name"]))
+
+    try:
+        if case_id in XFAIL_SPEC:
+            expect_failure(case_id, XFAIL_SPEC[case_id], check)
+        else:
+            check()
     except ContractError as exc:
         pytest.fail(f"{case_id} ({contract.file}): {exc}", pytrace=False)
