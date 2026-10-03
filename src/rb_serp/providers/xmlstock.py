@@ -28,7 +28,7 @@ class XmlStockProvider(XmlRiverProvider):
     summary = "XMLStock — yandex и google"
     credential_fields = ("user", "token")
     legacy_env: ClassVar[dict[str, str]] = {}
-    # Запасной провайдер: по умолчанию очередь — только xmlriver, без XMLStock serp работает.
+    # Необязателен: без доступов XMLStock очередь по умолчанию (xmlstock,xmlriver) уходит на xmlriver.
     required = False
 
     def _base_url(self, engine: str) -> str:

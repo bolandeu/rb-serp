@@ -252,7 +252,7 @@
       },
       {
         "name": "doctor",
-        "description": "Диагностика: версия, проект, настройки, база, связка ключей, доступы провайдеров.\n\nВсегда завершается с кодом 0 — результат это сам отчёт; `healthy`\nговорит, прошли ли все проверки.\n\nExample: serp doctor --json",
+        "description": "Диагностика: версия, проект, настройки, база, связка ключей, доступы провайдеров.\n\nДоступы проверяются у очереди проекта (`providers`), без проекта — у\nочереди по умолчанию: env SERP_PROVIDERS, иначе xmlstock,xmlriver.\n\nВсегда завершается с кодом 0 — результат это сам отчёт; `healthy`\nговорит, прошли ли все проверки.\n\nExample: serp doctor --json",
         "options": [
           {
             "name": "--json",
@@ -444,7 +444,7 @@
                 "required": true
               }
             ],
-            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе env SERP_PROVIDERS (\"a,b\"), иначе xmlstock,xmlriver.",
             "metadata": [
               {
                 "name": "x-rb-type",
@@ -658,7 +658,7 @@
                 "required": true
               }
             ],
-            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе env SERP_PROVIDERS (\"a,b\"), иначе xmlstock,xmlriver.",
             "metadata": [
               {
                 "name": "x-rb-type",
@@ -849,7 +849,7 @@
                 "required": true
               }
             ],
-            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе env SERP_PROVIDERS (\"a,b\"), иначе xmlstock,xmlriver.",
             "metadata": [
               {
                 "name": "x-rb-type",
@@ -1040,7 +1040,7 @@
                 "required": true
               }
             ],
-            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе env SERP_PROVIDERS (\"a,b\"), иначе xmlstock,xmlriver.",
             "metadata": [
               {
                 "name": "x-rb-type",
@@ -1231,7 +1231,7 @@
                 "required": true
               }
             ],
-            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+            "description": "Очередь провайдеров через запятую: первый основной, остальные фолбэки. Доступны: xmlriver (XML River — yandex и google); xmlstock (XMLStock — yandex и google). По умолчанию — `providers` из конфига проекта, иначе env SERP_PROVIDERS (\"a,b\"), иначе xmlstock,xmlriver.",
             "metadata": [
               {
                 "name": "x-rb-type",

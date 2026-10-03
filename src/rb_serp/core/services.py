@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from .client import SerpClient, organic_items, organic_results
 from .errors import CliTooOld, InvalidArguments, ProjectNotInitialized
-from .models import DEFAULT_PROVIDERS, PageFetch, ProjectConfig, SearchParams, SerpResult
+from .models import PageFetch, ProjectConfig, SearchParams, SerpResult, default_providers
 from .version import cli_name, installed_version
 
 # serp: папка проекта — по имени команды (.serp), не пакета (.rb_serp), как было до шаблона v1.2.1.
@@ -88,13 +88,13 @@ def init_project(project_root: Path, name: str) -> ProjectConfig:
 
 
 def resolve_providers(explicit: str | None, start: Path) -> list[str]:
-    """Очередь провайдеров: --provider "a,b" → `providers` проекта → по умолчанию."""
+    """Очередь провайдеров: --provider "a,b" → `providers` проекта → SERP_PROVIDERS → по умолчанию."""
     if explicit:
         return [name.strip() for name in explicit.split(",") if name.strip()]
     root = find_project_root(start)
     if root is not None:
         return load_config(root).providers
-    return list(DEFAULT_PROVIDERS)
+    return default_providers()
 
 
 _AGE_UNITS = {"m": "minutes", "h": "hours", "d": "days", "w": "weeks"}

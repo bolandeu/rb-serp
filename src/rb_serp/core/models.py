@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import urllib.parse
 from datetime import datetime
 from typing import Any
@@ -178,7 +179,15 @@ def extract_domain(url: str) -> str:
         return ""
 
 
-DEFAULT_PROVIDERS = ["xmlriver"]
+# XMLStock первым: XML River бывает недоступен подолгу (обрывы соединения).
+DEFAULT_PROVIDERS = ["xmlstock", "xmlriver"]
+PROVIDERS_ENV_VAR = "SERP_PROVIDERS"
+
+
+def default_providers() -> list[str]:
+    """Очередь без -p и конфига проекта: SERP_PROVIDERS ("a,b") → DEFAULT_PROVIDERS."""
+    names = [name.strip() for name in os.environ.get(PROVIDERS_ENV_VAR, "").split(",") if name.strip()]
+    return names or list(DEFAULT_PROVIDERS)
 
 
 class CliCompat(BaseModel):

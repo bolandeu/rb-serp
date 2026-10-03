@@ -1,6 +1,6 @@
 # serp
 
-Поисковая выдача Yandex/Google через SERP-провайдеров (по умолчанию [XML River](https://xmlriver.com)).
+Поисковая выдача Yandex/Google через SERP-провайдеров (по умолчанию [XMLStock](https://xmlstock.com), фолбэк — [XML River](https://xmlriver.com)).
 Работает как CLI (`serp search ...`) и как Python-библиотека (`from rb_serp import SerpClient`).
 Python-пакет — `rb-serp` (импорт `rb_serp`), команда в терминале — `serp`.
 
@@ -54,7 +54,7 @@ serp --ai                     # памятка для AI-агентов
 | `--output` | `-o` | | дополнительно сохранить в файл: `.csv` → CSV, иначе JSON-массив |
 | `--yandex-lr` | | `213` (Москва) | код региона Яндекса |
 | `--google-loc` | | `1011969` (Москва) | Criteria ID локации Google |
-| `--provider` | `-p` | `xmlriver` | очередь провайдеров через запятую, см. ниже |
+| `--provider` | `-p` | `xmlstock,xmlriver` | очередь провайдеров через запятую, см. ниже |
 
 ```bash
 serp search "купить диван"                                 # таблица
@@ -146,13 +146,17 @@ serp init                                  # создаёт .serp/config.toml
 serp config set providers "xmlriver,other"
 ```
 
+Порядок: `-p` → `providers` проекта → env `SERP_PROVIDERS="a,b"` (сервер, Windmill) →
+`xmlstock,xmlriver`. `--cache` ищет в журнале ответы любого провайдера очереди — старые
+ответы `xmlriver` находятся и при новом умолчании.
+
 ## Python-библиотека
 
 ```python
 from rb_serp import SerpClient, SearchParams
 
-client = SerpClient()  # очередь по умолчанию: ["xmlriver"]
-# client = SerpClient(providers=["xmlstock", "xmlriver"])
+client = SerpClient()  # очередь по умолчанию: env SERP_PROVIDERS, иначе ["xmlstock", "xmlriver"]
+# client = SerpClient(providers=["xmlriver"])
 results = client.search_sync(SearchParams(query="python разработка"))
 # async: results = await client.search(SearchParams(...))
 # из журнала: client.search_sync(params, use_cache=True, max_age=timedelta(days=7))

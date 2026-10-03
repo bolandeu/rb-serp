@@ -40,7 +40,7 @@ ProviderOpt = typer.Option(
     "-p",
     help="Очередь провайдеров через запятую: первый основной, остальные фолбэки. "
     f"Доступны: {providers_help()}. "
-    "По умолчанию — `providers` из конфига проекта, иначе xmlriver.",
+    'По умолчанию — `providers` из конфига проекта, иначе env SERP_PROVIDERS ("a,b"), иначе xmlstock,xmlriver.',
 )
 CacheOpt = typer.Option(
     False,

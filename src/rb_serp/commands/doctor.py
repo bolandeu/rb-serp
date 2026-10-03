@@ -7,7 +7,7 @@ import typer
 from .. import output
 from ..core import db, deps, services
 from ..core.errors import CliTooOld, InvalidArguments
-from ..core.models import DEFAULT_PROVIDERS, ProjectConfig
+from ..core.models import ProjectConfig, default_providers
 from ..core.version import DEV_VERSION, cli_name, installed_version
 from ..credentials import manager as credentials
 from ..providers import provider_class
@@ -47,6 +47,9 @@ def doctor(
 ) -> None:
     """Диагностика: версия, проект, настройки, база, связка ключей, доступы провайдеров.
 
+    Доступы проверяются у очереди проекта (`providers`), без проекта — у
+    очереди по умолчанию: env SERP_PROVIDERS, иначе xmlstock,xmlriver.
+
     Всегда завершается с кодом 0 — результат это сам отчёт; `healthy`
     говорит, прошли ли все проверки.
 
@@ -75,7 +78,7 @@ def doctor(
         except CliTooOld as exc:
             checks.append({"name": "cli_compat", "ok": False, "detail": exc.message})
 
-    checks.extend(_auth_checks(config.providers if config else DEFAULT_PROVIDERS))
+    checks.extend(_auth_checks(config.providers if config else default_providers()))
     checks.extend(deps.doctor_checks())  # [[tool.rb.external]] in pyproject.toml
     checks.extend(db.doctor_checks())  # база: соединение и ревизия схемы
 

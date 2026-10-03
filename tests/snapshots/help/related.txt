@@ -32,7 +32,8 @@
 │                                             остальные фолбэки. Доступны: xmlriver (XML River —   │
 │                                             yandex и google); xmlstock (XMLStock — yandex и      │
 │                                             google). По умолчанию — `providers` из конфига       │
-│                                             проекта, иначе xmlriver.                             │
+│                                             проекта, иначе env SERP_PROVIDERS ("a,b"), иначе     │
+│                                             xmlstock,xmlriver.                                   │
 │ --cache                                     Взять ответ из журнала, если такой запрос            │
 │                                             (поисковик, регион, текст, страница) уже был —       │
 │                                             бесплатно. Только полные ответы провайдеров из       │

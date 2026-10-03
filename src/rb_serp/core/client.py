@@ -10,7 +10,7 @@ from sqlalchemy import exc as sa_exc
 from ..providers import SerpProvider, provider_class
 from .cache import ResponseCache
 from .errors import AuthRequired, ProviderError
-from .models import DEFAULT_PROVIDERS, OrganicItem, PageFetch, PageRequest, SearchParams, SerpResult
+from .models import OrganicItem, PageFetch, PageRequest, SearchParams, SerpResult, default_providers
 from .serp_xml import parse_page
 
 log = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class SerpClient:
     ) -> None:
         if provider is not None and providers is not None:
             raise ValueError("Передайте либо provider, либо providers.")
-        self._chain: list[str | SerpProvider] = [provider] if provider else list(providers or DEFAULT_PROVIDERS)
+        self._chain: list[str | SerpProvider] = [provider] if provider else list(providers or default_providers())
         if not self._chain:
             raise ValueError("Очередь провайдеров пуста.")
         for item in self._chain:
@@ -230,10 +230,18 @@ class SerpClient:
             return best.model_copy(update={"billable": billable})  # все платные ответы, не только до лучшего
         if len(errors) == 1:
             raise errors[0]
+        if all(isinstance(exc, AuthRequired) for exc in errors):
+            # Доступов нет ни у кого — подсказать логин в обязательный провайдер, а не «все отказали».
+            required = [exc for exc, item in zip(errors, self._chain, strict=True) if self._required(item)]
+            raise (required or errors)[0]
         raise ProviderError(
             "+".join(self._names()),
             "все провайдеры отказали: " + "; ".join(exc.message for exc in errors),
         )
+
+    @staticmethod
+    def _required(item: str | SerpProvider) -> bool:
+        return (provider_class(item) if isinstance(item, str) else item).required
 
     def _names(self) -> list[str]:
         return [item if isinstance(item, str) else item.name for item in self._chain]
