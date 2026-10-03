@@ -1,1 +1,0 @@
-`search --json`: стоимость запроса — `cost` и `cost_currency` ("RUB") у каждого элемента `sources`, `cost_total` в конверте; из журнала — 0. Цена за запрос — `[prices] <provider>` в конфиге проекта или `SERP_<PROVIDER>_PRICE` (env главнее); не задана — null и предупреждение в stderr.
