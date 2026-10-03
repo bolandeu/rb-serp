@@ -155,3 +155,71 @@ def test_search_cache_flags(calls, tmp_path: Path) -> None:
     code, payload = invoke_json("--project", str(tmp_path), "search", "q", "--cache", "--max-age", "week")
     assert code == 2
     assert payload["error"]["code"] == "INVALID_ARGUMENTS"
+
+
+# --- стоимость запросов (T167) ----------------------------------------------------
+
+
+def _write_prices(tmp_path: Path, prices: str) -> None:
+    init(tmp_path)
+    config = tmp_path / ".serp" / "config.toml"
+    config.write_text(config.read_text() + f"\n[prices]\n{prices}\n")
+
+
+def test_search_cost_from_project_config(calls, tmp_path: Path) -> None:
+    _write_prices(tmp_path, "xmlriver = 0.25")
+    code, payload = invoke_json("--project", str(tmp_path), "search", "a", "b", "--top", "20")
+    assert code == 0
+    assert len(payload["sources"]) == 4
+    for source in payload["sources"]:
+        assert source["cost"] == 0.25
+        assert source["cost_currency"] == "RUB"
+    assert payload["cost_total"] == 1.0
+
+
+def test_search_cost_env_overrides_config(calls, tmp_path: Path) -> None:
+    _write_prices(tmp_path, "xmlriver = 0.25")
+    code, payload = invoke_json("--project", str(tmp_path), "search", "a", env={"SERP_XMLRIVER_PRICE": "0.4"})
+    assert code == 0
+    assert payload["sources"][0]["cost"] == 0.4
+    assert payload["cost_total"] == 0.4
+
+
+def test_search_cost_env_without_project(calls, tmp_path: Path) -> None:
+    code, payload = invoke_json("--project", str(tmp_path), "search", "a", env={"SERP_XMLRIVER_PRICE": "0"})
+    assert code == 0
+    assert payload["sources"][0]["cost"] == 0.0
+    assert payload["cost_total"] == 0.0
+
+
+def test_search_cost_from_cache_is_zero(calls, tmp_path: Path) -> None:
+    code, payload = invoke_json(
+        "--project", str(tmp_path), "search", "a", "--cache", env={"SERP_XMLRIVER_PRICE": "0.3"}
+    )
+    assert code == 0
+    assert payload["sources"][0]["from_cache"] is True
+    assert payload["sources"][0]["cost"] == 0
+    assert payload["cost_total"] == 0
+
+
+def test_search_cost_unknown_price_is_null_with_warning(calls, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("SERP_XMLRIVER_PRICE", raising=False)
+    result = invoke("--project", str(tmp_path), "search", "a", "--json")
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["sources"][0]["cost"] is None
+    assert payload["sources"][0]["cost_currency"] == "RUB"
+    assert payload["cost_total"] is None
+    assert "SERP_XMLRIVER_PRICE" in result.stderr
+
+
+def test_search_cost_bad_env_price_is_invalid_arguments(calls, tmp_path: Path) -> None:
+    code, payload = invoke_json("--project", str(tmp_path), "search", "a", env={"SERP_XMLRIVER_PRICE": "дорого"})
+    assert code == 2
+    assert payload["error"]["code"] == "INVALID_ARGUMENTS"
+
+
+def test_search_help_describes_cost() -> None:
+    result = invoke("search", "--help", env={"COLUMNS": "200"})
+    assert "cost_total" in result.output
+    assert "SERP_<PROVIDER>_PRICE" in result.output
