@@ -262,3 +262,33 @@ def test_search_help_describes_cost_source() -> None:
     result = invoke("search", "--help", env={"COLUMNS": "200"})
     assert "cost_source" in result.output
     assert "price_table" in result.output
+
+
+# --- платные вызовы провайдера (T175) ---------------------------------------------
+
+
+def test_search_top_50_bills_five_requests(calls, tmp_path: Path) -> None:
+    code, payload = invoke_json(
+        "--project", str(tmp_path), "search", "a", "--top", "50", env={"SERP_XMLRIVER_PRICE": "0.3"}
+    )
+    assert code == 0
+    assert len(payload["sources"]) == 5
+    assert all(source["billable_requests"] == 1 for source in payload["sources"])
+    assert payload["billable_requests_total"] == 5
+    assert payload["cost_total"] == 1.5
+
+
+def test_search_from_cache_bills_nothing(calls, tmp_path: Path) -> None:
+    code, payload = invoke_json(
+        "--project", str(tmp_path), "search", "a", "--cache", env={"SERP_XMLRIVER_PRICE": "0.3"}
+    )
+    assert code == 0
+    assert payload["sources"][0]["billable_requests"] == 0
+    assert payload["sources"][0]["cost_source"] == "cache"
+    assert payload["billable_requests_total"] == 0
+
+
+def test_search_help_describes_billable_requests() -> None:
+    result = invoke("search", "--help", env={"COLUMNS": "200"})
+    assert "billable_requests" in result.output
+    assert "billable_requests_total" in result.output
