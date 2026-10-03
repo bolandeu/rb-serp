@@ -10,6 +10,13 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.7.4] - 2026-10-03
+
+### Changed
+
+- Очередь провайдеров по умолчанию — `xmlstock,xmlriver` (было `xmlriver`); env `SERP_PROVIDERS="a,b"` перекрывает умолчание, но не `-p` и не `providers` проекта. Без доступов у всей очереди — по-прежнему `AUTH_REQUIRED` (код 3) про обязательный провайдер.
+
+
 ## [0.7.3] - 2026-10-03
 
 ### Changed
