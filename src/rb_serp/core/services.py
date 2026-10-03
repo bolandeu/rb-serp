@@ -176,20 +176,32 @@ def provider_prices(providers: list[str], start: Path) -> dict[str, float | None
     return prices
 
 
-def priced_sources(pages: list[PageFetch], prices: dict[str, float | None]) -> tuple[list[dict], float | None]:
-    """`sources` со стоимостью каждой страницы и итог; из журнала — 0, цена не задана — None (и итог None).
+def billed_providers(pages: list[PageFetch]) -> list[str]:
+    """Провайдеры, чьи ответы платные в этом вызове (включая отданных на фолбэк), — им нужна цена."""
+    return sorted({name for page in pages for name in page.billable})
 
-    cost_source: "cache" — из журнала, "price_table" — цена × 1 страницу, None — цены нет.
+
+def priced_sources(pages: list[PageFetch], prices: dict[str, float | None]) -> tuple[list[dict], float | None]:
+    """`sources` с платными ответами и стоимостью каждой страницы и итог стоимости.
+
+    billable_requests — сколько платных ответов провайдеров ушло на страницу (повтор
+    неполной и фолбэк — каждый ответ); cost — сумма «ответы × цена» по каждому
+    провайдеру. cost_source: "cache" — из журнала (0 ответов, cost 0), "price_table" —
+    по цене, None — у кого-то из оплаченных провайдеров цены нет (cost None, итог None).
     "provider" (фактическая стоимость из ответа) зарезервирован: XML River и XMLStock её не отдают.
     """
     rows = sources(pages)
     total: float | None = 0.0
     for row, page in zip(rows, pages, strict=True):
+        cost: float | None
         if page.from_cache:
             cost, cost_source = 0.0, "cache"
+        elif any(prices.get(name) is None for name in page.billable):
+            cost, cost_source = None, None
         else:
-            cost = prices.get(page.provider)
-            cost_source = "price_table" if cost is not None else None
+            cost = round(sum(count * (prices[name] or 0.0) for name, count in page.billable.items()), 6)
+            cost_source = "price_table"
+        row["billable_requests"] = sum(page.billable.values())
         row["cost"] = cost
         row["cost_currency"] = COST_CURRENCY
         row["cost_source"] = cost_source

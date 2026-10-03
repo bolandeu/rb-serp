@@ -79,20 +79,28 @@ def search(
 
     --json: {"ok": true, "count": N, "results": [{serp_position, query,
     searchengine, url, domain, title}, ...], "sources": [{query, engine,
-    page, provider, fetched_at, from_cache, complete, cost, cost_currency,
-    cost_source}, ...], "cost_total": X} (+ "saved_to" при --output).
-    complete=false — провайдер отдал неполную страницу (повтор и следующий
-    провайдер не помогли); из журнала такая не отдаётся.
+    page, provider, fetched_at, from_cache, complete, billable_requests,
+    cost, cost_currency, cost_source}, ...], "billable_requests_total": N,
+    "cost_total": X} (+ "saved_to" при --output). complete=false —
+    провайдер отдал неполную страницу (повтор и следующий провайдер не
+    помогли); из журнала такая не отдаётся.
 
-    Стоимость: cost — рубли за страницу выдачи (cost_currency "RUB"),
-    cost_total — сумма по всем страницам. Цена за запрос — по провайдеру:
-    env SERP_<PROVIDER>_PRICE (например SERP_XMLRIVER_PRICE=0.25; сервер и
-    Windmill передают только его) перекрывает [prices] в .serp/config.toml
-    (xmlriver = 0.25); не число — INVALID_ARGUMENTS. cost_source — откуда
-    cost: "provider" — фактическая из ответа провайдера (XML River и
-    XMLStock её не отдают), "price_table" — цена × страницы, "cache" — из
-    журнала (from_cache=true, cost 0), null — цена не задана (cost и
-    cost_total null, предупреждение в stderr, не ошибка).
+    Стоимость — за каждый платный ответ провайдера. billable_requests —
+    сколько их ушло на страницу: каждый успешный ответ, в том числе
+    неполный (повтор неполной страницы — 2), ответ, после которого ушли на
+    следующий провайдер, и «нет результатов»; сбои сети и ответы-ошибки
+    провайдера (их повторы) не считаются. cost — рубли за страницу
+    (cost_currency "RUB"): сумма billable_requests × цена по каждому
+    провайдеру; cost_total и billable_requests_total — по всем страницам.
+    Цена за запрос — по провайдеру: env SERP_<PROVIDER>_PRICE (например
+    SERP_XMLRIVER_PRICE=0.25; сервер и Windmill передают только его)
+    перекрывает [prices] в .serp/config.toml (xmlriver = 0.25); не число —
+    INVALID_ARGUMENTS. cost_source — откуда cost: "provider" — фактическая
+    из ответа провайдера (XML River и XMLStock её не отдают),
+    "price_table" — цена × billable_requests, "cache" — из журнала
+    (from_cache=true, billable_requests 0, cost 0), null — у оплаченного
+    провайдера нет цены (cost и cost_total null, предупреждение в stderr,
+    не ошибка).
     --format table печатает таблицу в stderr по мере готовности запросов;
     csv/domains/domains-se печатают данные в stdout.
 
@@ -120,7 +128,7 @@ def search(
         on_query_done=(lambda query_pages: _print_table(services.organic(query_pages, top))) if show_table else None,
     )
     results = services.organic(pages, top)
-    live = sorted({p.provider for p in pages if not p.from_cache})
+    live = services.billed_providers(pages)
     prices = services.provider_prices(live, Path(ctx.obj.get("project") or Path.cwd()))
     for name in (name for name in live if prices[name] is None):
         typer.echo(
@@ -134,6 +142,7 @@ def search(
         "count": len(results),
         "results": [r.model_dump() for r in results],
         "sources": sources,
+        "billable_requests_total": sum(source["billable_requests"] for source in sources),
         "cost_total": cost_total,
     }
     if output_path is not None:

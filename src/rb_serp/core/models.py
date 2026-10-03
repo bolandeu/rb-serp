@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import urllib.parse
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SerpResult(BaseModel):
@@ -103,6 +104,17 @@ class PageFetch(BaseModel):
     from_cache: bool
     complete: bool = True
     data: PageData
+    # Платные ответы провайдеров на эту страницу: {провайдер: сколько}. Каждый успешный
+    # ответ (и неполный, после которого был повтор или фолбэк, и «нет результатов»);
+    # сбои и ответы-ошибки — нет. Из журнала — {}. Не задано — один ответ `provider`.
+    billable: dict[str, int] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_billable(cls, values: Any) -> Any:
+        if isinstance(values, dict) and "billable" not in values:
+            values = {**values, "billable": {} if values.get("from_cache") else {values.get("provider"): 1}}
+        return values
 
 
 class SearchParams(BaseModel):

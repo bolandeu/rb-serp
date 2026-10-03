@@ -181,11 +181,18 @@ class SerpClient:
                 )
                 if hit is not None:
                     return PageFetch(
-                        **meta, provider=name, fetched_at=hit.fetched_at, from_cache=True, data=parse_page(hit.xml)
+                        **meta,
+                        provider=name,
+                        fetched_at=hit.fetched_at,
+                        from_cache=True,
+                        billable={},
+                        data=parse_page(hit.xml),
                     )
 
         errors: list[ProviderError | AuthRequired] = []
         best: PageFetch | None = None  # самая полная из неполных страниц
+        # Платные ответы: каждый успешный (и неполный, и «нет результатов»), по провайдерам.
+        billable: dict[str, int] = {}
         for index, name in enumerate(self._names()):
             has_next = index + 1 < len(self._chain)
             for attempt in range(1, _INCOMPLETE_ATTEMPTS + 1):
@@ -197,6 +204,7 @@ class SerpClient:
                     errors.append(exc)
                     log.warning("Провайдер %s: %s%s", name, exc.message, " — пробую следующий" if has_next else "")
                     break
+                billable[name] = billable.get(name, 0) + 1
                 data = parse_page(xml)
                 page = PageFetch(
                     **meta,
@@ -204,6 +212,7 @@ class SerpClient:
                     fetched_at=self._save(name, request, xml, data.complete),
                     from_cache=False,
                     complete=data.complete,
+                    billable=dict(billable),
                     data=data,
                 )
                 if data.complete:
@@ -218,7 +227,7 @@ class SerpClient:
 
         if best is not None:
             log.warning("Полной страницы не получено — отдаю лучшую (complete=false, в --cache не попадёт)")
-            return best
+            return best.model_copy(update={"billable": billable})  # все платные ответы, не только до лучшего
         if len(errors) == 1:
             raise errors[0]
         raise ProviderError(
