@@ -100,7 +100,7 @@ def search(
     "price_table" — цена × billable_requests, "cache" — из журнала
     (from_cache=true, billable_requests 0, cost 0), null — у оплаченного
     провайдера нет цены (cost и cost_total null, предупреждение в stderr,
-    не ошибка).
+    не ошибка). Те же поля стоимости отдают snippets, ads, related, summary.
     --format table печатает таблицу в stderr по мере готовности запросов;
     csv/domains/domains-se печатают данные в stdout.
 
@@ -128,23 +128,7 @@ def search(
         on_query_done=(lambda query_pages: _print_table(services.organic(query_pages, top))) if show_table else None,
     )
     results = services.organic(pages, top)
-    live = services.billed_providers(pages)
-    prices = services.provider_prices(live, Path(ctx.obj.get("project") or Path.cwd()))
-    for name in (name for name in live if prices[name] is None):
-        typer.echo(
-            f"Предупреждение: цена запроса {name} не задана — cost null. "
-            f"Задайте {services.price_env_var(name)} или [prices] {name} в .serp/config.toml.",
-            err=True,
-        )
-    sources, cost_total = services.priced_sources(pages, prices)
-
-    payload: dict = {
-        "count": len(results),
-        "results": [r.model_dump() for r in results],
-        "sources": sources,
-        "billable_requests_total": sum(source["billable_requests"] for source in sources),
-        "cost_total": cost_total,
-    }
+    payload: dict = {"count": len(results), "results": [r.model_dump() for r in results], **q.billing(ctx, pages)}
     if output_path is not None:
         services.save_results(results, output_path, as_csv=output_path.suffix.lower() == ".csv" or fmt is Format.csv)
         payload["saved_to"] = str(output_path)

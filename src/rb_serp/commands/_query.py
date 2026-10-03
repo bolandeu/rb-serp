@@ -87,5 +87,26 @@ def collect(
     )
 
 
+def billing(ctx: typer.Context, pages: list[PageFetch]) -> dict:
+    """Поля стоимости в --json: sources[] с billable_requests и cost*, итоги по всем страницам.
+
+    У оплаченного провайдера нет цены — предупреждение в stderr, cost null (не ошибка).
+    """
+    live = services.billed_providers(pages)
+    prices = services.provider_prices(live, Path(ctx.obj.get("project") or Path.cwd()))
+    for name in (name for name in live if prices[name] is None):
+        typer.echo(
+            f"Предупреждение: цена запроса {name} не задана — cost null. "
+            f"Задайте {services.price_env_var(name)} или [prices] {name} в .serp/config.toml.",
+            err=True,
+        )
+    sources, cost_total = services.priced_sources(pages, prices)
+    return {
+        "sources": sources,
+        "billable_requests_total": sum(source["billable_requests"] for source in sources),
+        "cost_total": cost_total,
+    }
+
+
 def human_mode(ctx: typer.Context) -> bool:
     return not ctx.obj.get("json") and not ctx.obj.get("quiet")

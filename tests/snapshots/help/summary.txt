@@ -9,7 +9,10 @@
  Google (XML River), только непустые поля.
 
  --json: {"ok": true, "count": N, "results": [{query, searchengine, found,
- ai_present, organic, ads, related, knowledge_graph}, ...], "sources": [...]}.
+ ai_present, organic, ads, related, knowledge_graph}, ...], "sources": [...],
+ "billable_requests_total": N, "cost_total": X}. sources[] и стоимость —
+ как у search (см. serp search --help): с --cache ответ из журнала
+ бесплатный — billable_requests 0, cost 0, cost_source "cache".
 
 
  Example: serp summary "купить диван" -e both --cache

@@ -26,7 +26,7 @@ def _table(rows: list[dict], columns: dict[str, str]) -> None:
 def _emit(ctx: typer.Context, rows: list[dict], pages, columns: dict[str, str]) -> None:
     output.emit_success(
         ctx,
-        {"count": len(rows), "results": rows, "sources": services.sources(pages)},
+        {"count": len(rows), "results": rows, **q.billing(ctx, pages)},
         render_human=lambda _: _table(rows, columns),
     )
 
@@ -56,7 +56,10 @@ def snippets(
 
     --json: {"ok": true, "count": N, "results": [{serp_position, query,
     searchengine, url, domain, title, snippet, breadcrumbs, stars, site_name,
-    pubdate, cachelink, contenttype}, ...], "sources": [...]}.
+    pubdate, cachelink, contenttype}, ...], "sources": [...],
+    "billable_requests_total": N, "cost_total": X}. sources[] и стоимость —
+    как у search (см. serp search --help): с --cache ответ из журнала
+    бесплатный — billable_requests 0, cost 0, cost_source "cache".
 
     \b
     Example: serp snippets "купить диван" --cache
@@ -98,7 +101,10 @@ def ads(
 
     --json: {"ok": true, "count": N, "results": [{query, searchengine,
     placement, position, url, domain, title, snippet, price}, ...],
-    "sources": [...]}.
+    "sources": [...],
+    "billable_requests_total": N, "cost_total": X}. sources[] и стоимость —
+    как у search (см. serp search --help): с --cache ответ из журнала
+    бесплатный — billable_requests 0, cost 0, cost_source "cache".
 
     \b
     Example: serp ads "купить диван" -p xmlstock
@@ -138,7 +144,10 @@ def related(
     обычно пусто. Нет блока — пустой список, не ошибка.
 
     --json: {"ok": true, "count": N, "results": [{query, searchengine, kind,
-    text, snippet, url}, ...], "sources": [...]}.
+    text, snippet, url}, ...], "sources": [...],
+    "billable_requests_total": N, "cost_total": X}. sources[] и стоимость —
+    как у search (см. serp search --help): с --cache ответ из журнала
+    бесплатный — billable_requests 0, cost 0, cost_source "cache".
 
     \b
     Example: serp related "купить диван" -e google -p xmlstock
@@ -174,7 +183,10 @@ def summary(
     Google (XML River), только непустые поля.
 
     --json: {"ok": true, "count": N, "results": [{query, searchengine, found,
-    ai_present, organic, ads, related, knowledge_graph}, ...], "sources": [...]}.
+    ai_present, organic, ads, related, knowledge_graph}, ...], "sources": [...],
+    "billable_requests_total": N, "cost_total": X}. sources[] и стоимость —
+    как у search (см. serp search --help): с --cache ответ из журнала
+    бесплатный — billable_requests 0, cost 0, cost_source "cache".
 
     \b
     Example: serp summary "купить диван" -e both --cache
