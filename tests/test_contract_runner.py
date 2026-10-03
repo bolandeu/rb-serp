@@ -23,7 +23,9 @@ from tests.test_contracts import (
     check_static_command,
     check_view_columns,
     expand_argv,
+    expect_failure,
     load_contracts,
+    load_xfail,
     run_case,
     type_family,
 )
@@ -255,3 +257,29 @@ def test_the_windmill_contract_is_accepted_as_is(tmp_path: Path) -> None:
         "windmill:run:cache_info_json",
         "windmill:run:describe_json",
     ]
+
+
+# serp: ожидаемые падения поставщика (tests/contracts/xfail.yaml, решение dev по T170).
+
+
+def test_xfail_file_maps_known_case_ids_to_reasons(tmp_path: Path) -> None:
+    path = tmp_path / "xfail.yaml"
+    assert load_xfail(path, known=["windmill:run:version"]) == {}
+    path.write_text('"windmill:run:version": "backlog 26: why"\n')
+    assert load_xfail(path, known=["windmill:run:version"]) == {"windmill:run:version": "backlog 26: why"}
+    with pytest.raises(ContractError, match=r"xfail\.yaml.*windmill:run:gone"):
+        path.write_text('"windmill:run:gone": "backlog 26"\n')
+        load_xfail(path, known=["windmill:run:version"])
+    with pytest.raises(ContractError, match=r"xfail\.yaml.*reason"):
+        path.write_text('"windmill:run:version": ""\n')
+        load_xfail(path, known=["windmill:run:version"])
+
+
+def test_an_expected_failure_is_strict() -> None:
+    def broken() -> None:
+        raise ContractError("exit code 1")
+
+    with pytest.raises(pytest.xfail.Exception, match=r"backlog 26.*exit code 1"):
+        expect_failure("windmill:run:x", "backlog 26", broken)
+    with pytest.raises(ContractError, match=r"windmill:run:x passes now.*xfail\.yaml"):
+        expect_failure("windmill:run:x", "backlog 26", lambda: None)

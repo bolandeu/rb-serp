@@ -253,3 +253,10 @@ def test_gate_runs_contracts_as_their_own_step() -> None:
     pytest_step = dict(release.COMMANDS)["pytest"]
     assert "--ignore=tests/test_contracts.py" in pytest_step
     assert release.check_contracts.__name__ == "check_contracts"
+
+
+def test_contract_summary_counts_expected_failures() -> None:
+    run = CONTRACT_RUN + "tests/test_contracts.py::test_contract[windmill:run:env] XFAIL (backlog 26) [100%]\n"
+    assert release.contract_summary(run) == (
+        "5 cases from 3 consumers: 1 failed, 1 skipped (provider version), 1 expected to fail (tests/contracts/xfail.yaml)"
+    )
