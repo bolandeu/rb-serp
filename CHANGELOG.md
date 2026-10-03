@@ -10,6 +10,13 @@ one of added/changed/deprecated/removed/fixed/security), and
 
 <!-- towncrier release notes start -->
 
+## [0.7.2] - 2026-10-03
+
+### Changed
+
+- `search --json`: стоимость — за каждый платный ответ провайдера. У каждого элемента `sources` — `billable_requests` (успешные ответы на страницу: повтор неполной страницы — 2, ответ перед фолбэком и «нет результатов» тоже платные; сбои и ответы-ошибки — нет), `cost` = сумма `billable_requests × цена` по каждому провайдеру; в конверте — `billable_requests_total`. Из журнала — 0 ответов, `cost` 0, `cost_source` "cache".
+
+
 ## [0.7.1] - 2026-10-03
 
 ### Added
