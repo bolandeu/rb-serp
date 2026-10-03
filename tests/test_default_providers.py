@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from rb_serp import SearchParams, SerpClient
+from rb_serp import AuthRequired, SearchParams, SerpClient
 from rb_serp.core import services
 from rb_serp.core.models import DEFAULT_PROVIDERS
 
@@ -59,3 +59,12 @@ def test_help_names_default_and_env(command: str) -> None:
     text = " ".join(invoke(command, "--help", env={"COLUMNS": "200"}).output.split())
     assert "SERP_PROVIDERS" in text
     assert "xmlstock,xmlriver" in text
+
+
+def test_no_credentials_anywhere_is_auth_required_for_required_provider() -> None:
+    """Нет доступов ни у кого в очереди — AUTH_REQUIRED (код 3) про обязательный провайдер, не PROVIDER_ERROR."""
+    optional = type("Stub_opt", (type(Stub("x")),), {"name": "opt", "required": False})(AuthRequired("opt"), (), None)
+    with pytest.raises(AuthRequired, match="'req'"):
+        SerpClient(providers=[optional, Stub("req", AuthRequired("req"))], cache=False).search_sync(
+            SearchParams(query="q")
+        )
