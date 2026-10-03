@@ -19,6 +19,7 @@ def isolated_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
         "SERP_XMLRIVER_TOKEN",
         "SERP_XMLSTOCK_USER",
         "SERP_XMLSTOCK_TOKEN",
+        "SERP_PROVIDERS",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr("rb_serp.credentials.manager.keyring.get_password", lambda service, username: None)

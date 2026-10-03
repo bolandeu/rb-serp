@@ -55,7 +55,7 @@ def test_search_json_envelope(calls, tmp_path: Path) -> None:
     assert payload["count"] == 4
     assert {r["query"] for r in payload["results"]} == {"a", "b"}
     params, chain, use_cache, _, _ = calls[0]
-    assert (params.top, params.yandex_lr, chain, use_cache) == (20, 2, ["xmlriver"], False)
+    assert (params.top, params.yandex_lr, chain, use_cache) == (20, 2, ["xmlstock", "xmlriver"], False)
     assert payload["sources"][0]["provider"] == "xmlriver"
 
 
