@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import csv
 import json
+import os
+import re
 import tomllib
 from collections.abc import Callable
 from datetime import timedelta
@@ -73,7 +75,10 @@ def load_config(project_root: Path, *, check_compat: bool = True) -> ProjectConf
 def save_config(project_root: Path, config: ProjectConfig) -> None:
     path = config_path(project_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(tomli_w.dumps(config.model_dump()))
+    data = config.model_dump()
+    if not data["prices"]:
+        del data["prices"]  # пустая [prices] в новом конфиге — шум; цены дописывают руками
+    path.write_text(tomli_w.dumps(data))
 
 
 def init_project(project_root: Path, name: str) -> ProjectConfig:
@@ -142,6 +147,45 @@ def collect(
         if on_query_done is not None:
             on_query_done(pages)
     return all_pages
+
+
+COST_CURRENCY = "RUB"
+
+
+def price_env_var(provider: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "_", f"{cli_name()}_{provider}_price".upper())
+
+
+def provider_prices(providers: list[str], start: Path) -> dict[str, float | None]:
+    """Цена запроса по провайдеру: SERP_<PROVIDER>_PRICE → [prices] проекта → None (не задана)."""
+    root = find_project_root(start)
+    configured = load_config(root).prices if root is not None else {}
+    prices: dict[str, float | None] = {}
+    for provider in providers:
+        name = price_env_var(provider)
+        raw = os.environ.get(name)
+        if raw is None:
+            prices[provider] = configured.get(provider)
+            continue
+        try:
+            prices[provider] = float(raw.strip().replace(",", "."))
+        except ValueError:
+            raise InvalidArguments(
+                f"{name}='{raw}': цена запроса должна быть числом в рублях, например 0.25."
+            ) from None
+    return prices
+
+
+def priced_sources(pages: list[PageFetch], prices: dict[str, float | None]) -> tuple[list[dict], float | None]:
+    """`sources` со стоимостью каждой страницы и итог; из журнала — 0, цена не задана — None (и итог None)."""
+    rows = sources(pages)
+    total: float | None = 0.0
+    for row, page in zip(rows, pages, strict=True):
+        cost = 0.0 if page.from_cache else prices.get(page.provider)
+        row["cost"] = cost
+        row["cost_currency"] = COST_CURRENCY
+        total = None if total is None or cost is None else total + cost
+    return rows, (round(total, 6) if total is not None else None)
 
 
 def sources(pages: list[PageFetch]) -> list[dict]:

@@ -179,6 +179,9 @@ class ProjectConfig(BaseModel):
     # Очередь провайдеров: первый — основной, остальные — фолбэки по порядку.
     providers: list[str] = Field(default_factory=lambda: list(DEFAULT_PROVIDERS))
     cli: CliCompat = Field(default_factory=CliCompat)
+    # Цена одного запроса (страницы выдачи) в рублях по провайдеру: [prices] xmlriver = 0.0.
+    # SERP_<PROVIDER>_PRICE перекрывает (на сервере и в Windmill — только env).
+    prices: dict[str, float] = Field(default_factory=dict)
 
     @field_validator("providers", mode="before")
     @classmethod

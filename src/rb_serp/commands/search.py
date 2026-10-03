@@ -79,9 +79,17 @@ def search(
 
     --json: {"ok": true, "count": N, "results": [{serp_position, query,
     searchengine, url, domain, title}, ...], "sources": [{query, engine,
-    page, provider, fetched_at, from_cache, complete}, ...]} (+ "saved_to"
-    при --output). complete=false — провайдер отдал неполную страницу
-    (повтор и следующий провайдер не помогли); из журнала такая не отдаётся.
+    page, provider, fetched_at, from_cache, complete, cost, cost_currency},
+    ...], "cost_total": X} (+ "saved_to" при --output). complete=false —
+    провайдер отдал неполную страницу (повтор и следующий провайдер не
+    помогли); из журнала такая не отдаётся.
+
+    Стоимость: cost — рубли за страницу выдачи (cost_currency "RUB"),
+    cost_total — сумма по всем страницам. Из журнала (from_cache=true) —
+    0. Цена за запрос — по провайдеру: env SERP_<PROVIDER>_PRICE (например
+    SERP_XMLRIVER_PRICE=0.25) перекрывает [prices] в .serp/config.toml
+    (xmlriver = 0.25). Цена не задана — cost и cost_total null,
+    предупреждение в stderr, не ошибка; не число — INVALID_ARGUMENTS.
     --format table печатает таблицу в stderr по мере готовности запросов;
     csv/domains/domains-se печатают данные в stdout.
 
@@ -109,11 +117,21 @@ def search(
         on_query_done=(lambda query_pages: _print_table(services.organic(query_pages, top))) if show_table else None,
     )
     results = services.organic(pages, top)
+    live = sorted({p.provider for p in pages if not p.from_cache})
+    prices = services.provider_prices(live, Path(ctx.obj.get("project") or Path.cwd()))
+    for name in (name for name in live if prices[name] is None):
+        typer.echo(
+            f"Предупреждение: цена запроса {name} не задана — cost null. "
+            f"Задайте {services.price_env_var(name)} или [prices] {name} в .serp/config.toml.",
+            err=True,
+        )
+    sources, cost_total = services.priced_sources(pages, prices)
 
     payload: dict = {
         "count": len(results),
         "results": [r.model_dump() for r in results],
-        "sources": services.sources(pages),
+        "sources": sources,
+        "cost_total": cost_total,
     }
     if output_path is not None:
         services.save_results(results, output_path, as_csv=output_path.suffix.lower() == ".csv" or fmt is Format.csv)
