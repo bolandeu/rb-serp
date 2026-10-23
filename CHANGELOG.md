@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Versions follow
 
 The changelog is written by `antagor publish`; don't edit it by hand.
 
+## v0.8.0 — 2026-10-23
+
+### Outside epics
+
+- Allow one revoked key in git history (gitleaks fingerprint) (SERP-001)
+- Make help and describe snapshots independent of the machine (data dir) (SERP-002)
+
 ## [0.7.4] - 2026-10-03
 
 ### Changed

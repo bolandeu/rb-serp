@@ -1,7 +1,7 @@
 ---
 id: SERP-002
 title: Make help and describe snapshots independent of the machine (data dir)
-status: publish
+status: done
 attempts: 0
 blocked: false
 blocked_reason: null
