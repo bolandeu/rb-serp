@@ -2,4 +2,3 @@
 # по T170: CLI не патчим, контракт не трогаем). id кейса -> причина с пунктом бэклога.
 # Строго: кейс начал проходить — тест падает, пометку снять (tests/test_contracts.py).
 "windmill:static:env": "tools backlog 26: SERP_XMLSTOCK_PRICE / SERP_XMLRIVER_PRICE нет в x-rb-env describe --json"
-"windmill:run:error_is_json_under_json": "tools backlog 26: шаблон cli-generator — ошибки использования под --json не в JSON"

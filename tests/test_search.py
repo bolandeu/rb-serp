@@ -10,7 +10,7 @@ from rb_serp.core import services
 from rb_serp.core.errors import ProviderError
 from rb_serp.core.models import OrganicItem, PageData, PageFetch, SearchParams
 
-from .test_cli import init, invoke, invoke_json
+from .test_cli import init, invoke, invoke_json, plain
 
 
 class Calls(list):
@@ -222,7 +222,7 @@ def test_search_cost_bad_env_price_is_invalid_arguments(calls, tmp_path: Path) -
 def test_search_help_describes_cost() -> None:
     result = invoke("search", "--help", env={"COLUMNS": "200"})
     assert "cost_total" in result.output
-    assert "SERP_<PROVIDER>_PRICE" in result.output
+    assert "SERP_<PROVIDER>_PRICE" in plain(result.output)  # the gate forces Rich colours
 
 
 # --- источник стоимости (T175) ----------------------------------------------------

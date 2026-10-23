@@ -13,23 +13,20 @@ description: Поисковая выдача Яндекса и Google (топ-N:
 ## Установка (если `serp --version` не работает)
 
 ```bash
-uv tool install "rb-serp @ git+https://github.com/bolandeu/serp.git@vX.Y.Z"
+uv tool install rb-serp --index https://homeserver.tailee01ab.ts.net:3000/api/packages/bolandeu/pypi/simple
 ```
 
-Вместо `vX.Y.Z` — последний тег релиза (ставить только с тега, не с ветки).
-Одинаково на macOS, Linux и Windows; обновление — `uv tool upgrade rb-serp`
-(пакет называется `rb-serp`, команда — `serp`). Не запускать из исходников,
-если не просили разрабатывать сам CLI.
-
-Репозиторий приватный. При ошибке авторизации (`Authentication failed`,
-`could not read Username`, `Repository not found`) токен не спрашивать:
-выполнить `gh auth status`; если проходит — `gh auth setup-git` и повторить;
-если нет — попросить пользователя выполнить `gh auth login`. С настроенными
-SSH-ключами работает и так:
+From the git tag instead:
 
 ```bash
-uv tool install "rb-serp @ git+ssh://git@github.com/bolandeu/serp.git@vX.Y.Z"
+uv tool install "rb-serp @ git+https://homeserver.tailee01ab.ts.net:3000/bolandeu/serp.git@vX.Y.Z"
 ```
+
+Replace `vX.Y.Z` with the latest release tag (install from a tag, never a
+branch: [the Standard](https://homeserver.tailee01ab.ts.net:3000/bolandeu/cli-generator/src/branch/main/skills/cli-builder/reference/standard.md), Install).
+
+Same command on macOS, Linux and Windows; `uv tool upgrade rb-serp`
+updates it. Do not run from source unless asked to develop the CLI.
 
 ## Правила
 

@@ -7,21 +7,17 @@ Python-пакет — `rb-serp` (импорт `rb_serp`), команда в те
 ## Установка
 
 ```bash
-uv tool install "git+https://github.com/bolandeu/serp.git"
+uv tool install rb-serp --index https://homeserver.tailee01ab.ts.net:3000/api/packages/bolandeu/pypi/simple
 ```
 
-Одинаково на macOS, Linux и Windows; обновление — `uv tool upgrade rb-serp`, конкретная
-версия — `...rb-serp.git@v0.2.0`.
-
-**Репозиторий приватный.** `uv` ходит в git так же, как `git clone`. Если установка
-падает с ошибкой авторизации — один раз `gh auth login` (или `gh auth setup-git`, если
-`gh` залогинен через `--with-token`), либо SSH-вариант:
+Или с тега:
 
 ```bash
-uv tool install "git+ssh://git@github.com/bolandeu/serp.git"
+uv tool install "rb-serp @ git+https://homeserver.tailee01ab.ts.net:3000/bolandeu/serp.git@vX.Y.Z"
 ```
 
-Как зависимость другого проекта: `uv add "rb-serp @ git+https://github.com/bolandeu/serp.git"`.
+Вместо `vX.Y.Z` — последний тег релиза (ставить только с тега, не с ветки).
+Одинаково на macOS, Linux и Windows; обновление — `uv tool upgrade rb-serp`.
 
 ## Доступы
 
@@ -208,27 +204,15 @@ SearchParams(
 ```bash
 uv sync
 uv run serp --help
-uv run scripts/release.py --check   # весь гейт — перед каждым коммитом
-scripts/install_hooks.sh            # один раз на клон: git берёт хуки из .githooks/
+uv run pytest                       # тесты; весь гейт — шаг `rb-release check` в .gitea/workflows/ci.yml
 uv run pytest --snapshot-update     # после правки справки команды; читать diff tests/snapshots/help/
 uv tool install --editable .        # глобальная команда из рабочей копии
 ```
 
-Гейт (`release.py --check`): `uv lock --check`, ruff (с правилами безопасности `S`),
-ty, pytest (порог покрытия, контракт справки и её снапшоты, форма `auth status`),
-changelog-фрагмент, сборка wheel с установкой во временный venv и проверкой
-`serp --version`, `osv-scanner` по `uv.lock` (если установлен). CI необязателен и
-запускает только его.
+Гейт — `rb-release check` (шаг `.gitea/workflows/ci.yml`): `uv lock --check`, ruff (с правилами
+безопасности `S`), ty, pytest (порог покрытия, контракт справки и её снапшоты, форма
+`auth status`), сборка wheel с установкой во временный venv и проверкой `serp --version`,
+проверки Standard, `osv-scanner` по `uv.lock`, `gitleaks`.
 
-Версия — git-тег `vX.Y.Z`, в `pyproject.toml` строки `version =` нет. `CHANGELOG.md`
-руками не правится: каждое изменение — фрагмент в `changelog.d/`.
-
-```bash
-uv run towncrier create +<slug>.<type>.md -c "Что изменилось, для человека."
-uv run scripts/release.py patch   # или minor / major (на 0.x: patch — фикс/фича, minor — ломающее)
-git push --follow-tags
-```
-
-`release.py` работает только с чистого `main`, не отстающего от origin: гейт,
-сборка `CHANGELOG.md` из фрагментов, коммит `Release vX.Y.Z`, аннотированный тег;
-push — вручную.
+Версия — git-тег `vX.Y.Z`, в `pyproject.toml` строки `version =` нет. `CHANGELOG.md` и релиз
+(гейт, тег) делает Antagor — `antagor publish`; руками changelog не правится.
