@@ -1691,7 +1691,7 @@
       },
       {
         "name": "cache",
-        "description": "Журнал всех ответов провайдеров (он же кэш для --cache).\n\nЖурнал ответов: /Users/bolandau/Library/Application Support/serp/serp.sqlite — 5 МБ.",
+        "description": "Журнал всех ответов провайдеров (он же кэш для --cache).\n\nЖурнал ответов: /nonexistent/serp.sqlite — пока пуст.",
         "commands": [
           {
             "name": "info",

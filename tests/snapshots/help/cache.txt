@@ -3,7 +3,7 @@
 
  Журнал всех ответов провайдеров (он же кэш для --cache).
 
- Журнал ответов: /Users/bolandau/Library/Application Support/serp/serp.sqlite — 5 МБ.
+ Журнал ответов: /nonexistent/serp.sqlite — пока пуст.
 
 ╭─ Параметры ──────────────────────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                                      │
