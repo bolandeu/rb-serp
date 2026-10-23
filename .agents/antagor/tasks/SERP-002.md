@@ -1,7 +1,7 @@
 ---
 id: SERP-002
 title: Make help and describe snapshots independent of the machine (data dir)
-status: ideas
+status: queue
 attempts: 0
 blocked: false
 blocked_reason: null
@@ -9,7 +9,7 @@ phase: null
 tests_hash: null
 publish_stage: null
 created_by: architect
-approved_by: null
+approved_by: architect
 worker: claude-code
 type: chore
 owns_paths:
