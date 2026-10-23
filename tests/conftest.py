@@ -8,6 +8,10 @@ import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+# Before any rb_serp import: the help text names the response journal file (core.cache.help_line),
+# so a path that never exists keeps the help and describe snapshots the same on every machine.
+os.environ["SERP_DB_PATH"] = "/nonexistent/serp.sqlite"
+
 import httpx
 import pytest
 import sqlalchemy as sa
