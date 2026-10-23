@@ -1,7 +1,7 @@
 ---
 id: SERP-001
 title: Allow one revoked key in git history (gitleaks fingerprint)
-status: queue
+status: in_progress
 attempts: 0
 blocked: false
 blocked_reason: null
