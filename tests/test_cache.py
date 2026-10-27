@@ -108,7 +108,7 @@ def test_legacy_journal_moves_to_serp_responses_with_its_dates(_local_database: 
     engine = db.open_db()
     names = sa.inspect(engine).get_table_names()
     assert "responses" not in names and "serp_responses" in names
-    assert sa.inspect(engine).get_view_names() == ["serp_v1_responses"]
+    assert sa.inspect(engine).get_view_names() == ["serp_v1_responses", "serp_v1_results"]
 
 
 def test_journal_before_0_3_counts_as_complete(_local_database: Path) -> None:

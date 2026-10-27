@@ -95,6 +95,36 @@ responses = sa.Table(
     info={"kind": "cache", "push": {"since": "fetched_at"}},
 )
 
+# Позиции органики каждого ответа журнала — строка на позицию, как её даёт `serp search`
+# без среза --top (core/results.py). Пишется вместе с ответами (SerpClient.fetch), старые
+# ответы разобраны миграцией 0002 (docs/adr/0001-serp-results-table.md). Без внешнего
+# ключа (его не пропускает db push): с ответом связан по (provider, engine, region,
+# query, page, fetched_at).
+results = sa.Table(
+    f"{PREFIX}results",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("fetched_at", UtcDateTime, nullable=False, index=True),  # = fetched_at ответа
+    sa.Column("provider", sa.Text, nullable=False),
+    sa.Column("engine", sa.Text, nullable=False),
+    sa.Column("region", sa.Text, nullable=False),
+    sa.Column("query", sa.Text, nullable=False),
+    sa.Column("query_key", sa.Text, nullable=False),  # rb_keys.norm_query(query)
+    sa.Column("page", sa.Integer, nullable=False),
+    sa.Column("complete", sa.Boolean, nullable=False),
+    sa.Column("position", sa.Integer, nullable=False),
+    sa.Column("url", sa.Text, nullable=False),
+    sa.Column("url_key", sa.Text),  # rb_keys.norm_url(url); NULL — не URL
+    sa.Column("domain", sa.Text, nullable=False),
+    sa.Column("domain_key", sa.Text),  # rb_keys.norm_domain(domain); NULL — не домен
+    sa.Column("title", sa.Text, nullable=False),
+    sa.UniqueConstraint(
+        "provider", "engine", "region", "query", "page", "fetched_at", "position", name="serp_results_natural_uq"
+    ),
+    sa.Index("serp_results_query_key_engine_region_ix", "query_key", "engine", "region"),
+    info={"kind": "cache", "push": {"since": "fetched_at"}},
+)
+
 # The `<tool>_v1_*` views other tools, Directus and the platform read instead of the
 # tables — the tool's data contract, published by `describe --json` (x-rb-data.views).
 # Declared here for that, created by a migration (`CREATE VIEW`); tests/test_db.py
@@ -115,4 +145,24 @@ v1_responses = sa.Table(
     sa.Column("page", sa.Integer, comment="Номер страницы выдачи"),
     sa.Column("complete", sa.Boolean, comment="false — провайдер отдал неполную страницу"),
     comment="Журнал ответов провайдеров: строка на полученную страницу выдачи (без сырого XML)",
+)
+
+v1_results = sa.Table(
+    f"{PREFIX}v1_results",
+    views,
+    sa.Column("fetched_at", UtcDateTime, comment="Когда получен ответ, UTC — связь с serp_v1_responses"),
+    sa.Column("provider", sa.Text, comment="Провайдер выдачи (xmlriver, xmlstock)"),
+    sa.Column("engine", sa.Text, comment="Поисковик: yandex или google"),
+    sa.Column("region", sa.Text, comment="Регион: lr Яндекса / loc Google"),
+    sa.Column("query", sa.Text, comment="Запрос, как его ввёл пользователь"),
+    sa.Column("query_key", sa.Text, comment="Ключ запроса (rb_keys.norm_query) — для связи"),
+    sa.Column("page", sa.Integer, comment="Номер страницы выдачи, с нуля"),
+    sa.Column("position", sa.Integer, comment="Позиция в органике с 1, как в serp search (без дублей URL)"),
+    sa.Column("url", sa.Text, comment="URL результата, как его отдал провайдер"),
+    sa.Column("url_key", sa.Text, comment="Ключ URL (rb_keys.norm_url); NULL — не URL"),
+    sa.Column("domain", sa.Text, comment="Домен результата, как в serp search (без www.)"),
+    sa.Column("domain_key", sa.Text, comment="Ключ домена (rb_keys.norm_domain); NULL — не домен"),
+    sa.Column("title", sa.Text, comment="Заголовок результата"),
+    sa.Column("complete", sa.Boolean, comment="false — позиция из неполной страницы"),
+    comment="Органическая выдача: строка на позицию каждого ответа журнала, по дате получения",
 )

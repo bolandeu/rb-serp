@@ -206,12 +206,12 @@ def test_import_sqlite(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _as_postgres(monkeypatch, target)
 
     code, payload = invoke_json("db", "import-sqlite", str(tmp_path / "old.db"), "--dry-run")
-    assert code == 0 and payload["rows"] == {tables.responses.name: 2}
+    assert code == 0 and payload["rows"] == {tables.responses.name: 2, tables.results.name: 0}
     with target.connect() as conn:
         assert conn.execute(sa.select(sa.func.count()).select_from(tables.responses)).scalar_one() == 0
 
     code, payload = invoke_json("db", "import-sqlite", str(tmp_path / "old.db"))
-    assert code == 0 and payload["rows"] == {tables.responses.name: 2}
+    assert code == 0 and payload["rows"] == {tables.responses.name: 2, tables.results.name: 0}
     with target.connect() as conn:
         assert {row.query for row in conn.execute(sa.select(tables.responses))} == {"Купить ёлку", "вторая"}
 
@@ -255,7 +255,10 @@ def test_push(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
     code, payload = invoke_json("db", "push", "--dry-run")
     assert code == 0, payload
-    assert payload["tables"] == {tables.responses.name: {"selected": 3, "sent": 2, "skipped": 1}}
+    assert payload["tables"] == {
+        tables.responses.name: {"selected": 3, "sent": 2, "skipped": 1},
+        tables.results.name: {"selected": 0, "sent": 0, "skipped": 0},
+    }
     assert len(_phrases(prod)) == 2
 
     code, payload = invoke_json("db", "push")
@@ -316,8 +319,8 @@ def test_postgres_round_trip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     monkeypatch.setenv(db.ENV_VAR, PG_URL)
     engine = db.open_db(check=False)
     with engine.begin() as conn:  # a clean slate: only this tool's objects
-        conn.execute(sa.text(f"DROP VIEW IF EXISTS {db.PREFIX}v1_responses"))
-        conn.execute(sa.text(f"DROP TABLE IF EXISTS {db.PREFIX}responses, {db.VERSION_TABLE}"))
+        conn.execute(sa.text(f"DROP VIEW IF EXISTS {db.PREFIX}v1_responses, {db.PREFIX}v1_results"))
+        conn.execute(sa.text(f"DROP TABLE IF EXISTS {db.PREFIX}responses, {db.PREFIX}results, {db.VERSION_TABLE}"))
         conn.execute(sa.text("CREATE TABLE IF NOT EXISTS directus_users (id int)"))  # someone else's table
     with pytest.raises(DatabaseNotMigrated):
         db.open_db()
@@ -328,7 +331,7 @@ def test_postgres_round_trip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     source = db.sqlite_engine(tmp_path / "old.db")
     db.upgrade(source)
     _add_item(source)
-    assert db.import_sqlite(tmp_path / "old.db", engine) == {tables.responses.name: 1}
+    assert db.import_sqlite(tmp_path / "old.db", engine) == {tables.responses.name: 1, tables.results.name: 0}
     _add_item(engine, "вторая")  # the sequence moved past the imported ids
     with engine.connect() as conn:
         assert conn.execute(sa.text(f"SELECT count(*) FROM {db.PREFIX}v1_responses")).scalar_one() == 2  # noqa: S608
@@ -343,7 +346,10 @@ def test_postgres_round_trip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     _add_item(local)  # "Купить ёлку" is already there
     _add_item(local, "третья")
     prod = db.prod_engine()
-    assert db.push(local, prod, dry_run=True) == {tables.responses.name: {"selected": 2, "sent": 1, "skipped": 1}}
+    assert db.push(local, prod, dry_run=True) == {
+        tables.responses.name: {"selected": 2, "sent": 1, "skipped": 1},
+        tables.results.name: {"selected": 0, "sent": 0, "skipped": 0},
+    }
     assert db.push(local, prod)[tables.responses.name]["sent"] == 1
     assert db.push(local, prod)[tables.responses.name]["sent"] == 0
     prod.dispose()

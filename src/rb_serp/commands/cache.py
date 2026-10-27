@@ -1,3 +1,5 @@
+"""`serp cache`: журнал ответов провайдеров (он же кэш) — размер, записи, очистка; логика — в core/cache.py."""
+
 from __future__ import annotations
 
 import typer
@@ -84,6 +86,8 @@ def clear(
     quiet: bool = output.QuietOption,
 ) -> None:
     """Удалить записи журнала: старше срока (--older-than) или все (--all).
+
+    Вместе с ответами удаляются их позиции (представление serp_v1_results).
 
     Необратимо: сначала --dry-run (покажет, сколько удалится), затем
     --confirm (обязателен вместе с --non-interactive).
