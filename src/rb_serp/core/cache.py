@@ -12,6 +12,10 @@ PostgreSQL из `SERP_DATABASE_URL` или локальная SQLite. Тольк
 повторный ответ на тот же запрос не заменяет старый, а ложится рядом со своей
 датой получения (`fetched_at`, UTC).
 
+Рядом, в `serp_results`, — позиции органики каждого записанного ответа
+(`put_results`, считает core/results.py); читают их через `serp_v1_results`.
+`clear` удаляет их вместе с ответами.
+
 Почему своя таблица, а не готовый кэш: hishel ключует по URL — а в нём логин и
 ключ провайдера; diskcache — это key→value без истории и выборки по дате.
 Нужны история, поиск по дате и размер — это SQL-таблица.
@@ -28,7 +32,7 @@ from pydantic import BaseModel
 
 from . import db
 from .normalize import norm_phrase
-from .tables import responses
+from .tables import responses, results
 
 
 def human_size(num_bytes: int) -> str:
@@ -131,6 +135,13 @@ class ResponseCache:
             )  # fmt: skip
         return fetched_at
 
+    def put_results(self, rows: list[dict]) -> None:
+        """Позиции органики ответов журнала (core/results.result_rows) — одной транзакцией."""
+        if not rows:
+            return
+        with self.engine.begin() as conn:
+            conn.execute(sa.insert(results), rows)
+
     def latest(
         self,
         *,
@@ -209,16 +220,21 @@ class ResponseCache:
             return conn.execute(sql).scalar_one()
 
     def clear(self, older_than: timedelta | None) -> int:
-        """Удалить записи старше `older_than` (None — все); в SQLite — и вернуть место на диске."""
-        sql = sa.delete(responses)
-        if older_than is not None:
-            sql = sql.where(responses.c.fetched_at < _cutoff(older_than))
+        """Удалить записи старше `older_than` (None — все) с их позициями; в SQLite — и вернуть место на диске."""
+        cutoff = None if older_than is None else _cutoff(older_than)
         with self.engine.begin() as conn:
-            deleted = conn.execute(sql).rowcount
+            deleted = conn.execute(_older(responses, cutoff)).rowcount
+            conn.execute(_older(results, cutoff))  # serp_v1_results не показывает удалённую историю
         if not db.is_postgres(self.engine):
             with self.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                 conn.execute(sa.text("VACUUM"))  # иначе файл не уменьшится
         return deleted
+
+
+def _older(table: sa.Table, cutoff: datetime | None) -> sa.Delete:
+    """DELETE строк `table`, полученных до `cutoff` (None — всех)."""
+    sql = sa.delete(table)
+    return sql if cutoff is None else sql.where(table.c.fetched_at < cutoff)
 
 
 def _cutoff(age: timedelta) -> datetime:

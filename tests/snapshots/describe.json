@@ -1811,7 +1811,7 @@
           },
           {
             "name": "clear",
-            "description": "Удалить записи журнала: старше срока (--older-than) или все (--all).\n\nНеобратимо: сначала --dry-run (покажет, сколько удалится), затем\n--confirm (обязателен вместе с --non-interactive).\n\n--json: {\"ok\": true, \"deleted\": N} (при --dry-run — {\"dry_run\": true,\n\"would_delete\": N}).\n\nExample: serp cache clear --older-than 30d --dry-run",
+            "description": "Удалить записи журнала: старше срока (--older-than) или все (--all).\n\nВместе с ответами удаляются их позиции (представление serp_v1_results).\n\nНеобратимо: сначала --dry-run (покажет, сколько удалится), затем\n--confirm (обязателен вместе с --non-interactive).\n\n--json: {\"ok\": true, \"deleted\": N} (при --dry-run — {\"dry_run\": true,\n\"would_delete\": N}).\n\nExample: serp cache clear --older-than 30d --dry-run",
             "options": [
               {
                 "name": "--older-than",
@@ -2629,6 +2629,90 @@
                 }
               ],
               "push": true
+            },
+            {
+              "name": "serp_results",
+              "schema": "public",
+              "kind": "cache",
+              "columns": [
+                {
+                  "name": "id",
+                  "type": "INTEGER",
+                  "nullable": false,
+                  "primary_key": true
+                },
+                {
+                  "name": "fetched_at",
+                  "type": "DATETIME",
+                  "nullable": false
+                },
+                {
+                  "name": "provider",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "engine",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "region",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "query",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "query_key",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "page",
+                  "type": "INTEGER",
+                  "nullable": false
+                },
+                {
+                  "name": "complete",
+                  "type": "BOOLEAN",
+                  "nullable": false
+                },
+                {
+                  "name": "position",
+                  "type": "INTEGER",
+                  "nullable": false
+                },
+                {
+                  "name": "url",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "url_key",
+                  "type": "TEXT",
+                  "nullable": true
+                },
+                {
+                  "name": "domain",
+                  "type": "TEXT",
+                  "nullable": false
+                },
+                {
+                  "name": "domain_key",
+                  "type": "TEXT",
+                  "nullable": true
+                },
+                {
+                  "name": "title",
+                  "type": "TEXT",
+                  "nullable": false
+                }
+              ],
+              "push": true
             }
           ],
           "views": [
@@ -2675,6 +2759,82 @@
                   "name": "complete",
                   "type": "BOOLEAN",
                   "description": "false — провайдер отдал неполную страницу"
+                }
+              ]
+            },
+            {
+              "name": "serp_v1_results",
+              "description": "Органическая выдача: строка на позицию каждого ответа журнала, по дате получения",
+              "columns": [
+                {
+                  "name": "fetched_at",
+                  "type": "DATETIME",
+                  "description": "Когда получен ответ, UTC — связь с serp_v1_responses"
+                },
+                {
+                  "name": "provider",
+                  "type": "TEXT",
+                  "description": "Провайдер выдачи (xmlriver, xmlstock)"
+                },
+                {
+                  "name": "engine",
+                  "type": "TEXT",
+                  "description": "Поисковик: yandex или google"
+                },
+                {
+                  "name": "region",
+                  "type": "TEXT",
+                  "description": "Регион: lr Яндекса / loc Google"
+                },
+                {
+                  "name": "query",
+                  "type": "TEXT",
+                  "description": "Запрос, как его ввёл пользователь"
+                },
+                {
+                  "name": "query_key",
+                  "type": "TEXT",
+                  "description": "Ключ запроса (rb_keys.norm_query) — для связи"
+                },
+                {
+                  "name": "page",
+                  "type": "INTEGER",
+                  "description": "Номер страницы выдачи, с нуля"
+                },
+                {
+                  "name": "position",
+                  "type": "INTEGER",
+                  "description": "Позиция в органике с 1, как в serp search (без дублей URL)"
+                },
+                {
+                  "name": "url",
+                  "type": "TEXT",
+                  "description": "URL результата, как его отдал провайдер"
+                },
+                {
+                  "name": "url_key",
+                  "type": "TEXT",
+                  "description": "Ключ URL (rb_keys.norm_url); NULL — не URL"
+                },
+                {
+                  "name": "domain",
+                  "type": "TEXT",
+                  "description": "Домен результата, как в serp search (без www.)"
+                },
+                {
+                  "name": "domain_key",
+                  "type": "TEXT",
+                  "description": "Ключ домена (rb_keys.norm_domain); NULL — не домен"
+                },
+                {
+                  "name": "title",
+                  "type": "TEXT",
+                  "description": "Заголовок результата"
+                },
+                {
+                  "name": "complete",
+                  "type": "BOOLEAN",
+                  "description": "false — позиция из неполной страницы"
                 }
               ]
             }

@@ -1,3 +1,10 @@
+"""Клиент выдачи: страницы у провайдеров по очереди с фолбэком, журнал ответов и позиции органики.
+
+Каждый ответ провайдера пишется в журнал (`ResponseCache`), а позиции органики
+ответов вызова — в serp_results (core/results.py: то же правило, что у
+`serp search`, без среза --top).
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -11,6 +18,7 @@ from ..providers import SerpProvider, provider_class
 from .cache import ResponseCache
 from .errors import AuthRequired, ProviderError
 from .models import OrganicItem, PageFetch, PageRequest, SearchParams, SerpResult, default_providers
+from .results import page_positions, result_rows
 from .serp_xml import parse_page
 
 log = logging.getLogger(__name__)
@@ -27,15 +35,8 @@ def organic_items(pages: list[PageFetch], top: int) -> list[tuple[PageFetch, int
     for page in pages:
         groups.setdefault((page.query, page.engine), []).append(page)
     for group in groups.values():
-        seen: set[str] = set()
-        position = 0
         for page in sorted(group, key=lambda p: p.page):
-            for item in page.data.organic:
-                if item.url in seen or position >= top:
-                    continue
-                seen.add(item.url)
-                position += 1
-                rows.append((page, position, item))
+            rows.extend((page, position, item) for position, item in page_positions(group, page) if position <= top)
     return rows
 
 
@@ -117,10 +118,12 @@ class SerpClient:
         # event loop, а search_sync каждый раз запускает новый.
         semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
         instances: dict[int, SerpProvider | AuthRequired] = {}
+        stored: list[tuple[str, PageFetch]] = []  # (регион, ответ) — каждый, что этот вызов записал в журнал
+        tasks: list[asyncio.Task[PageFetch]] = []
         try:
             async with asyncio.TaskGroup() as group:
                 tasks = [
-                    group.create_task(self._fetch_one(request, instances, semaphore, use_cache, max_age))
+                    group.create_task(self._fetch_one(request, instances, semaphore, use_cache, max_age, stored))
                     for request in requests
                 ]
         except ExceptionGroup as eg:
@@ -129,6 +132,9 @@ class SerpClient:
             for instance in instances.values():
                 if isinstance(instance, SerpProvider):
                     await instance.aclose()
+            # И при сбое страницы: позиции уже оплаченных ответов не теряются.
+            used = [task.result() for task in tasks if task.done() and not task.cancelled() and not task.exception()]
+            self._save_results(stored, used)
         return [task.result() for task in tasks]
 
     async def search(
@@ -165,6 +171,7 @@ class SerpClient:
         semaphore: asyncio.Semaphore,
         use_cache: bool,
         max_age: timedelta | None,
+        stored: list[tuple[str, PageFetch]],
     ) -> PageFetch:
         meta = {"query": request.query, "engine": request.engine, "page": request.page}
         if use_cache and self.cache is not None:
@@ -206,15 +213,18 @@ class SerpClient:
                     break
                 billable[name] = billable.get(name, 0) + 1
                 data = parse_page(xml)
+                fetched_at = self._save(name, request, xml, data.complete)
                 page = PageFetch(
                     **meta,
                     provider=name,
-                    fetched_at=self._save(name, request, xml, data.complete),
+                    fetched_at=fetched_at or datetime.now(UTC),
                     from_cache=False,
                     complete=data.complete,
                     billable=dict(billable),
                     data=data,
                 )
+                if fetched_at is not None:
+                    stored.append((request.region, page))
                 if data.complete:
                     return page
                 log.warning(
@@ -261,8 +271,8 @@ class SerpClient:
         except (sa_exc.SQLAlchemyError, OSError) as exc:
             log.warning("Журнал %s недоступен: %s", self.cache.path, exc)
 
-    def _save(self, provider: str, request: PageRequest, xml: str, complete: bool) -> datetime:
-        """Записать ответ в журнал; сбой диска не должен ломать уже оплаченный поиск."""
+    def _save(self, provider: str, request: PageRequest, xml: str, complete: bool) -> datetime | None:
+        """Записать ответ в журнал — его `fetched_at`, или None: не записан (журнала нет, сбой диска не ломает поиск)."""
         if self.cache is not None:
             try:
                 return self.cache.put(
@@ -276,4 +286,18 @@ class SerpClient:
                 )
             except (sa_exc.SQLAlchemyError, OSError) as exc:
                 log.warning("Не удалось записать ответ в журнал %s: %s", self.cache.path, exc)
-        return datetime.now(UTC)
+        return None
+
+    def _save_results(self, stored: list[tuple[str, PageFetch]], used: list[PageFetch]) -> None:
+        """Позиции ответов, что этот вызов записал в журнал, — в serp_results; сбой базы — только предупреждение."""
+        if self.cache is None or not stored:
+            return
+        rows = [
+            row
+            for region, page in stored
+            for row in result_rows(region, page, [u for u in used if (u.query, u.engine) == (page.query, page.engine)])
+        ]
+        try:
+            self.cache.put_results(rows)
+        except (sa_exc.SQLAlchemyError, OSError) as exc:
+            log.warning("Не удалось записать позиции в журнал %s: %s", self.cache.path, exc)

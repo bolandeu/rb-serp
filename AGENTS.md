@@ -57,6 +57,10 @@ are in the tool's state dir (`runs/`); `python3 scripts/detach.py stop
   (`--provider a,b`, project `providers = [...]`, default `["xmlriver"]`).
   Tests inject `httpx.MockTransport` via the provider's `transport`
   argument. Never call `httpx` from `core/` or `commands/`.
+  `SerpClient.fetch` also writes the organic positions of every response it
+  journals into `serp_results` (`core/results.py`, the same rule as
+  `serp search`, no `--top` cut); other tools read them only through the view
+  `serp_v1_results` (why a table: `docs/adr/0001-serp-results-table.md`).
   Every provider sets `name`, `credential_fields`, `required` and
   implements `health_check()` (one cheap, read-only, non-billed call —
   `tests/test_providers.py` fails without it). `auth status --check --json`
