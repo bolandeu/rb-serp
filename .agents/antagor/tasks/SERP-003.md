@@ -2,7 +2,7 @@
 id: SERP-003
 title: 'serp_v1_results: one row per SERP position of every journal response (table
   filled on write + backfill)'
-status: in_progress
+status: in_review
 attempts: 0
 blocked: false
 blocked_reason: null
