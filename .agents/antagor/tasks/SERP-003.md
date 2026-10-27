@@ -22,6 +22,7 @@ owns_paths:
 - docs/adr
 - AGENTS.md
 - README.md
+- src/rb_serp/commands/cache.py
 test_paths:
 - tests/test_results.py
 docs:
