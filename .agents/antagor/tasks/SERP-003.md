@@ -100,3 +100,16 @@ client.organic_items/organic_results (position rule), cache.ResponseCache (journ
 - No change to serp_responses, its query_key, core/normalize.py, serp_v1_responses
 - No new command and no change to the --json of existing commands
 - No snippets, ads, related queries in the view
+
+## Feedback
+
+### Answer to question #1
+
+> tests/test_cache.py::test_legacy_journal_moves_to_serp_responses_with_its_dates asserts get_view_names() == ['serp_v1_responses']; migration 0002 adds serp_v1_results, so this existing test fails, and the task lists only three tests in test_db.py as allowed to change.
+> Question: May I change this assert to include serp_v1_results?
+> Options:
+> 1. Change the assert to ['serp_v1_responses', 'serp_v1_results'] and report it with the reason (new view)
+> 2. Leave the test red and stop
+> Recommended: Change the assert to ['serp_v1_responses', 'serp_v1_results'] and report it with the reason (new view)
+
+Option 1: change the assert to include serp_v1_results and report it with the reason (a new view).
