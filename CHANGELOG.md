@@ -5,6 +5,12 @@ All notable changes to this project are documented here. Versions follow
 
 The changelog is written by `antagor publish`; don't edit it by hand.
 
+## v0.8.2 — 2026-10-27
+
+### Outside epics
+
+- serp_v1_results: one row per SERP position of every journal response (table filled on write + backfill) (SERP-003)
+
 ## v0.8.1 — 2026-10-26
 
 ### Main
