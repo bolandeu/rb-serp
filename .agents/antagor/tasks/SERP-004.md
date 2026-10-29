@@ -2,7 +2,7 @@
 id: SERP-004
 title: 'Cache read survives a journal row that is not zlib: skip it, use the next
   older readable row'
-status: queue
+status: in_review
 attempts: 1
 blocked: false
 blocked_reason: null
