@@ -8,6 +8,7 @@ import sqlalchemy as sa
 
 from rb_serp.core import db
 from rb_serp.core.cache import ResponseCache
+from rb_serp.core.tables import responses
 
 
 def put(
@@ -154,3 +155,37 @@ def test_help_line_names_the_shared_database_without_password(monkeypatch: pytes
 
     monkeypatch.setenv(db.ENV_VAR, "postgresql://serp:secret@homeserver:5432/directus")
     assert "homeserver" in help_line() and "secret" not in help_line()
+
+
+def _raw_row(cache: ResponseCache, xml: bytes, fetched_at: datetime, *, complete: bool = True) -> None:
+    """Строка журнала с произвольными байтами в xml — как будто записал не `put`."""
+    with cache.engine.begin() as conn:
+        conn.execute(
+            sa.insert(responses).values(
+                fetched_at=fetched_at, provider="xmlstock", engine="yandex", region="213", query="Купить Диван",
+                query_key="купить диван", page=0, complete=complete, xml=xml,
+            )
+        )  # fmt: skip
+
+
+def test_latest_skips_a_row_that_is_not_zlib_and_uses_the_older_one(caplog: pytest.LogCaptureFixture) -> None:
+    cache = ResponseCache()
+    put(cache, xml="<older/>")
+    _raw_row(cache, b"garbage", datetime.now(UTC) + timedelta(seconds=5))
+    hit = latest(cache)
+    assert hit is not None and hit.xml == "<older/>"
+    assert "garbage" not in caplog.text
+    assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 1
+
+
+def test_latest_is_a_miss_when_the_only_row_is_corrupt() -> None:
+    cache = ResponseCache()
+    _raw_row(cache, b"garbage", datetime.now(UTC))
+    assert latest(cache) is None
+
+
+def test_latest_accepts_a_plain_xml_row() -> None:
+    cache = ResponseCache()
+    _raw_row(cache, b"\xef\xbb\xbf \n<yandexsearch>\xd0\x94</yandexsearch>", datetime.now(UTC))
+    hit = latest(cache)
+    assert hit is not None and hit.xml.endswith("<yandexsearch>Д</yandexsearch>")

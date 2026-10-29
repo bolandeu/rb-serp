@@ -1,0 +1,1 @@
+- Cache read skips a journal row that is not zlib (warns once) and uses the next older readable row; plain-XML rows are accepted (SERP-004)
