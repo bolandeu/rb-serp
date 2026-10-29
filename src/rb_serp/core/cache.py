@@ -171,7 +171,7 @@ class ResponseCache:
             for row in conn.execute(sql.order_by(c.fetched_at.desc(), c.id.desc())):
                 try:
                     xml = _decode(row.xml)
-                except (zlib.error, UnicodeDecodeError):
+                except zlib.error, UnicodeDecodeError:
                     log.warning(
                         "Запись журнала %s (%s, %s) не читается — беру следующую", row.id, row.fetched_at, row.provider
                     )
