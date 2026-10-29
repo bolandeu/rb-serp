@@ -5,6 +5,12 @@ All notable changes to this project are documented here. Versions follow
 
 The changelog is written by `antagor publish`; don't edit it by hand.
 
+## v0.8.3 — 2026-10-29
+
+### Outside epics
+
+- Cache read survives a journal row that is not zlib: skip it, use the next older readable row (SERP-004)
+
 ## v0.8.2 — 2026-10-27
 
 ### Outside epics
