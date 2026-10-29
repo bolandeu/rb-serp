@@ -3,7 +3,7 @@ id: SERP-004
 title: 'Cache read survives a journal row that is not zlib: skip it, use the next
   older readable row'
 status: queue
-attempts: 0
+attempts: 1
 blocked: false
 blocked_reason: null
 phase: null
@@ -59,3 +59,34 @@ Follow Cache.latest and the insert helper in tests/test_cache.py; stderr warning
 ## Out of scope
 
 - No migration, no change of put(), no cleanup of prod, no new CLI command.
+
+## Feedback
+
+### Attempt 1: the project's full check failed after the merge
+
+The project's full check fails with this task merged into main, and passes without it: your change broke something elsewhere. Merge main into your branch and fix it within the task, or say what is outside it with `antagor inbox add`.
+
+- `uvx --from "git+https://homeserver.tailee01ab.ts.net:3000/bolandeu/cli-generator.git@v1.27.3#subdirectory=gate" rb-release check`
+
+```
+release: secret scan ... ok (no secrets in the git history)
+release: uv lock --check ... ok
+release: ruff check ... ok
+release: ruff format --check ... FAILED
+   Updating https://homeserver.tailee01ab.ts.net:3000/bolandeu/cli-generator.git (v1.27.3)
+    Updated https://homeserver.tailee01ab.ts.net:3000/bolandeu/cli-generator.git (b52a6a1629a49f774f76aee1b2b75609965b8ac5)
+
+release: gate step 'ruff format --check' failed:
+$ uv run ruff format --check .
+unformatted: File would be reformatted
+   --> src/rb_serp/core/cache.py:174:24
+    |
+173 |                     xml = _decode(row.xml)
+    -                 except (zlib.error, UnicodeDecodeError):
+174 +                 except zlib.error, UnicodeDecodeError:
+175 |                     log.warning(
+    |
+
+1 file would be reformatted, 90 files already formatted
+release: code failed
+```
