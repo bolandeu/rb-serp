@@ -23,6 +23,7 @@ PostgreSQL из `SERP_DATABASE_URL` или локальная SQLite. Тольк
 
 from __future__ import annotations
 
+import logging
 import zlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -33,6 +34,8 @@ from pydantic import BaseModel
 from . import db
 from .normalize import norm_phrase
 from .tables import responses, results
+
+log = logging.getLogger(__name__)
 
 
 def human_size(num_bytes: int) -> str:
@@ -154,7 +157,7 @@ class ResponseCache:
     ) -> CachedPage | None:
         """Самая свежая полная запись этого провайдера по ключу, или None."""
         c = responses.c
-        sql = sa.select(c.xml, c.provider, c.fetched_at).where(
+        sql = sa.select(c.id, c.xml, c.provider, c.fetched_at).where(
             c.provider == provider,
             c.engine == engine,
             c.region == region,
@@ -165,12 +168,16 @@ class ResponseCache:
         if max_age is not None:
             sql = sql.where(c.fetched_at >= _cutoff(max_age))
         with self.engine.connect() as conn:
-            row = conn.execute(sql.order_by(c.fetched_at.desc()).limit(1)).first()
-        if row is None:
-            return None
-        return CachedPage(
-            xml=zlib.decompress(row.xml).decode("utf-8"), provider=row.provider, fetched_at=row.fetched_at
-        )
+            for row in conn.execute(sql.order_by(c.fetched_at.desc(), c.id.desc())):
+                try:
+                    xml = _decode(row.xml)
+                except zlib.error, UnicodeDecodeError:
+                    log.warning(
+                        "Запись журнала %s (%s, %s) не читается — беру следующую", row.id, row.fetched_at, row.provider
+                    )
+                    continue
+                return CachedPage(xml=xml, provider=row.provider, fetched_at=row.fetched_at)
+        return None
 
     def stats(self) -> CacheStats:
         c = responses.c
@@ -235,6 +242,17 @@ def _older(table: sa.Table, cutoff: datetime | None) -> sa.Delete:
     """DELETE строк `table`, полученных до `cutoff` (None — всех)."""
     sql = sa.delete(table)
     return sql if cutoff is None else sql.where(table.c.fetched_at < cutoff)
+
+
+def _decode(data: bytes) -> str:
+    """XML записи: сжатый zlib (так пишет `put`) или несжатый, если байты начинаются с `<`."""
+    try:
+        return zlib.decompress(data).decode("utf-8")
+    except zlib.error:
+        text = data.decode("utf-8-sig").lstrip()
+        if text.startswith("<"):
+            return text
+        raise
 
 
 def _cutoff(age: timedelta) -> datetime:
