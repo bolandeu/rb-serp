@@ -3,7 +3,7 @@
   "info": {
     "title": "serp",
     "version": "<version>",
-    "summary": "Поисковая выдача Яндекса и Google через SERP-провайдеров (XML River, XMLStock) с фолбэком: CLI serp и библиотека rb_serp"
+    "summary": "Search engine results for Yandex and Google through SERP providers with fallback."
   },
   "command": {
     "name": "serp",

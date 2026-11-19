@@ -756,8 +756,8 @@ wheels = [
 
 [[package]]
 name = "rb-keys"
-version = "0.2.1"
-source = { registry = "https://homeserver.tailee01ab.ts.net:3000/api/packages/bolandeu/pypi/simple" }
+version = "0.2.4"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "platformdirs" },
@@ -767,8 +767,9 @@ dependencies = [
     { name = "typer" },
     { name = "w3lib" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/14/73/322a9fe8b79fefa04d9a6f687446075ae3c6625251dfd9e39655da5450ae/rb_keys-0.2.4.tar.gz", hash = "sha256:e200062929776603160bd71d55df7affd1da931a17d044c0cac3dbf9b79d4b50", size = 73884, upload-time = "2026-11-19T13:36:44.728Z" }
 wheels = [
-    { url = "https://homeserver.tailee01ab.ts.net:3000/api/packages/bolandeu/pypi/files/rb-keys/0.2.1/rb_keys-0.2.1-py3-none-any.whl", hash = "sha256:6d1af9a2e5229562d981f8b4351e08be666d6556fbdd38f956e85c7fd90e2b52" },
+    { url = "https://files.pythonhosted.org/packages/a8/18/aab15e79bda595bd40fc3291f8253071d3f973e96053d5f3749240771f4f/rb_keys-0.2.4-py3-none-any.whl", hash = "sha256:f0c1881226a7d69ac65822e17a472c97e5d3cda6e28734135aca6dd816e667b0", size = 45559, upload-time = "2026-11-19T13:36:43.457Z" },
 ]
 
 [[package]]
@@ -813,7 +814,7 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.6" },
-    { name = "rb-keys", specifier = ">=0.2,<0.3", index = "https://homeserver.tailee01ab.ts.net:3000/api/packages/bolandeu/pypi/simple" },
+    { name = "rb-keys", specifier = ">=0.2,<0.3" },
     { name = "rich", specifier = ">=13.7" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "tomli-w", specifier = ">=1.0" },

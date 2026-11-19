@@ -7,7 +7,6 @@ Python-пакет — `rb-serp` (импорт `rb_serp`), команда в те
 ## Установка
 
 ```bash
-uv tool install rb-serp --index https://homeserver.tailee01ab.ts.net:3000/api/packages/bolandeu/pypi/simple
 ```
 
 Или с тега:
