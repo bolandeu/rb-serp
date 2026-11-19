@@ -8,7 +8,7 @@ Guidance for coding agents working on the **rb-serp** package (import `rb_serp`,
 - Antagor keeps the tasks and epics: `.agents/antagor/`.
 - How to write to the Human and to agents (ASD-STE100): the skill `antagor-method`, section «How to write to the Human and to agents».
 - The package Standard: https://homeserver.tailee01ab.ts.net:3000/bolandeu/cli-generator/src/branch/main/skills/cli-builder/reference/standard.md (sections by name, for example «Install»).
-- The gate before a commit: the `rb-release check` step of `.gitea/workflows/ci.yml` — run that command.
+- The gate before a commit: `gate check`, on this machine — the command is `[publish] gate_command` in `.agents/antagor/antagor.toml` (Standard, CI). It is the only gate: no workflow runs it.
 
 ## Architect only
 
@@ -129,7 +129,7 @@ Logging is stdlib `logging` (logger `rb_serp`), never `print`.
   add one back, don't hard-code a version string anywhere.
 - **Changelog and release** go through Antagor: `antagor publish` assembles
   the release (gate, `CHANGELOG.md`, annotated tag). The gate is the
-  `rb-release check` step of `.gitea/workflows/ci.yml`.
+  `gate check` step of `.gitea/workflows/ci.yml`.
 - **Every user-visible change ships as a release.** Servers, other tools
   and the Mac install only from tags, never from `main`, so a merged change
   without a release is invisible to them.

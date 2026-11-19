@@ -26,7 +26,7 @@ PARTS = ("project", "skill", "describe", "db")
 # зашиты во встроенный в Typer Click и остаются как есть.
 rich_utils.ARGUMENTS_PANEL_TITLE = "Аргументы"
 rich_utils.OPTIONS_PANEL_TITLE = "Параметры"
-# COMMANDS_PANEL_TITLE stays English: the gate (rb-release v1.27.1) reads the commands under "Commands".
+# COMMANDS_PANEL_TITLE stays English: the gate (gate v1.27.1) reads the commands under "Commands".
 rich_utils.DEFAULT_STRING = "[по умолчанию: {}]"
 rich_utils.REQUIRED_LONG_STRING = "[обязательный]"
 
