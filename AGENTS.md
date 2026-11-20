@@ -2,7 +2,6 @@
 
 Guidance for coding agents working on the **rb-serp** package (import `rb_serp`, command `serp`) itself (not its end users — see `src/rb_serp/data/SKILL.md` for that). Pointers for agents. Antagor shows the changing state (statuses, branches, tasks): `antagor board`.
 
-- Decisions and why: `docs/adr/` (format: `docs/adr/README.md`).
 - The package Standard: https://github.com/bolandeu/python-package-gate/blob/main/skills/cli-builder/reference/standard.md (sections by name, for example «Install»).
 - The gate before a commit: `gate check`, on this machine (Standard, CI). It is the only gate: no workflow runs it.
 
@@ -56,7 +55,6 @@ are in the tool's state dir (`runs/`); `python3 scripts/detach.py stop
   `SerpClient.fetch` also writes the organic positions of every response it
   journals into `serp_results` (`core/results.py`, the same rule as
   `serp search`, no `--top` cut); other tools read them only through the view
-  `serp_v1_results` (why a table: `docs/adr/0001-serp-results-table.md`).
   Every provider sets `name`, `credential_fields`, `required` and
   implements `health_check()` (one cheap, read-only, non-billed call —
   `tests/test_providers.py` fails without it). `auth status --check --json`
