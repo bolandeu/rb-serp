@@ -779,8 +779,7 @@ dev = [
 
 [[package]]
 name = "rb-keys"
-version = "0.2.4"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../rb-keys" }
 dependencies = [
     { name = "packaging" },
     { name = "platformdirs" },
@@ -790,10 +789,29 @@ dependencies = [
     { name = "typer" },
     { name = "w3lib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/14/73/322a9fe8b79fefa04d9a6f687446075ae3c6625251dfd9e39655da5450ae/rb_keys-0.2.4.tar.gz", hash = "sha256:e200062929776603160bd71d55df7affd1da931a17d044c0cac3dbf9b79d4b50", size = 73884, upload-time = "2026-11-19T13:36:44.728Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/18/aab15e79bda595bd40fc3291f8253071d3f973e96053d5f3749240771f4f/rb_keys-0.2.4-py3-none-any.whl", hash = "sha256:f0c1881226a7d69ac65822e17a472c97e5d3cda6e28734135aca6dd816e667b0", size = 45559, upload-time = "2026-11-19T13:36:43.457Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "packaging", specifier = ">=24.0" },
+    { name = "platformdirs", specifier = ">=4.2" },
+    { name = "pydantic", specifier = ">=2.6" },
+    { name = "rich", specifier = ">=13.7" },
+    { name = "tomli-w", specifier = ">=1.0" },
+    { name = "typer", specifier = ">=0.27,<0.29" },
+    { name = "w3lib", specifier = ">=2.5.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4.23" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-cov", specifier = ">=5.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "ruff", specifier = ">=0.6" },
+    { name = "syrupy", specifier = ">=4.8" },
+    { name = "ty", specifier = ">=0.0.80" },
+]
+mutation = [{ name = "mutmut", specifier = ">=3.3" }]
 
 [[package]]
 name = "rb-serp"
@@ -839,7 +857,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "rb-credentials", editable = "../rb-credentials" },
-    { name = "rb-keys", specifier = ">=0.2,<0.3" },
+    { name = "rb-keys", editable = "../rb-keys" },
     { name = "rich", specifier = ">=13.7" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "tomli-w", specifier = ">=1.0" },
