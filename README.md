@@ -12,7 +12,7 @@ Python-пакет — `rb-serp` (импорт `rb_serp`), команда в те
 Или с тега:
 
 ```bash
-uv tool install "rb-serp @ git+https://homeserver.tailee01ab.ts.net:3000/bolandeu/serp.git@vX.Y.Z"
+uv tool install "rb-serp @ git+https://github.com/bolandeu/rb-serp.git@vX.Y.Z"
 ```
 
 Вместо `vX.Y.Z` — последний тег релиза (ставить только с тега, не с ветки).
