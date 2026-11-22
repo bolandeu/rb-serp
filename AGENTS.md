@@ -123,7 +123,7 @@ Logging is stdlib `logging` (logger `rb_serp`), never `print`.
   add one back, don't hard-code a version string anywhere.
 - **Changelog and release** go through Antagor: `antagor publish` assembles
   the release (gate, `CHANGELOG.md`, annotated tag). The gate is the
-  `gate check` step of `.gitea/workflows/ci.yml`.
+  `gate check` step of `the gate check before a commit`.
 - **Every user-visible change ships as a release.** Servers, other tools
   and the Mac install only from tags, never from `main`, so a merged change
   without a release is invisible to them.

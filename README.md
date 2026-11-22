@@ -210,12 +210,12 @@ SearchParams(
 ```bash
 uv sync
 uv run serp --help
-uv run pytest                       # тесты; весь гейт — шаг `gate check` в .gitea/workflows/ci.yml
+uv run pytest                       # тесты; весь гейт — шаг `gate check` в the gate check before a commit
 uv run pytest --snapshot-update     # после правки справки команды; читать diff tests/snapshots/help/
 uv tool install --editable .        # глобальная команда из рабочей копии
 ```
 
-Гейт — `gate check` (шаг `.gitea/workflows/ci.yml`): `uv lock --check`, ruff (с правилами
+Гейт — `gate check` (шаг `the gate check before a commit`): `uv lock --check`, ruff (с правилами
 безопасности `S`), ty, pytest (порог покрытия, контракт справки и её снапшоты, форма
 `auth status`), сборка wheel с установкой во временный venv и проверкой `serp --version`,
 проверки Standard, `osv-scanner` по `uv.lock`, `gitleaks`.
