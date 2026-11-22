@@ -32,6 +32,8 @@ class OrganicItem(BaseModel):
     pubdate: str = ""
     cachelink: str = ""
     contenttype: str = ""
+    # Слова, помеченные в сниппете как подсвеченные (`<hlword>`, у XML River — `<b>`): «подсветки» выдачи.
+    highlights: tuple[str, ...] = ()
 
 
 class AdItem(BaseModel):

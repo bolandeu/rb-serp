@@ -34,6 +34,21 @@ def response_error(xml_text: str) -> tuple[int | None, str] | None:
 _NO_RESULTS = 15
 
 
+def _highlights(doc: ET.Element) -> tuple[str, ...]:
+    """Слова, на которых провайдер поставил подсветку: `<hlword>` в сниппете и пассажах, у XML River — `<b>`.
+
+    Порядок — как в выдаче, повторы убраны: один и тот же подсвеченный оборот приходит с каждым пассажем страницы.
+    """
+    words: list[str] = []
+    for holder in ("passages", "snippet"):
+        for tag in ("hlword", "b"):
+            for node in doc.findall(f".//{holder}//{tag}"):
+                text = _text(node).strip()
+                if text and text not in words:
+                    words.append(text)
+    return tuple(words)
+
+
 def parse_page(xml_text: str) -> PageData:
     root = ET.fromstring(xml_text)  # noqa: S314 — ответ доверенного API
     error = root.find(".//error")
@@ -48,6 +63,7 @@ def parse_page(xml_text: str) -> PageData:
             domain=extract_domain(url),
             title=_text(doc.find("title")),
             snippet=_text(doc.find("passages")) or _text(doc.find("headline")),
+            highlights=_highlights(doc),
             breadcrumbs=_text(doc.find("breadcrumbs")),
             stars=_text(doc.find("stars")),
             site_name=_text(doc.find("site_name")),

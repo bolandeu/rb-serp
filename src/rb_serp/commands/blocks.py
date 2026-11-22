@@ -47,7 +47,7 @@ def snippets(
     quiet: bool = output.QuietOption,
     verbose: bool = output.VerboseOption,
 ) -> None:
-    """Выдача со всеми полями: сниппет, хлебные крошки, рейтинг, имя сайта, дата.
+    """Выдача со всеми полями: сниппет, подсветки, хлебные крошки, рейтинг, имя сайта, дата.
 
     Те же позиции, что у search, плюс всё, что провайдер отдал о результате.
     Какие поля заполнены, зависит от провайдера и поисковика: breadcrumbs —
@@ -56,7 +56,7 @@ def snippets(
 
     --json: {"ok": true, "count": N, "results": [{serp_position, query,
     searchengine, url, domain, title, snippet, breadcrumbs, stars, site_name,
-    pubdate, cachelink, contenttype}, ...], "sources": [...],
+    pubdate, cachelink, contenttype, highlights}, ...], "sources": [...],
     "billable_requests_total": N, "cost_total": X}. sources[] и стоимость —
     как у search (см. serp search --help): с --cache ответ из журнала
     бесплатный — billable_requests 0, cost 0, cost_source "cache".
